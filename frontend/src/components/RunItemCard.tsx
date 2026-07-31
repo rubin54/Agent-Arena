@@ -2,10 +2,11 @@ import { Check, ChevronDown, Copy, Maximize2 } from 'lucide-react'
 import { useState } from 'react'
 import type { RenderMode, RunItem } from '../api/types'
 import { formatCost, formatDuration, formatTokens } from '../lib/format'
+import { AgentTrace } from './AgentTrace'
 import { ResultRenderer } from './ResultRenderer'
 import { Badge, Button, ErrorBox, Spinner, StatusBadge, cx } from './ui'
 
-type View = 'rendered' | 'raw'
+type View = 'rendered' | 'raw' | 'trace'
 
 export function RunItemCard({
   item,
@@ -23,6 +24,9 @@ export function RunItemCard({
   const [view, setView] = useState<View>('rendered')
   const [copied, setCopied] = useState(false)
   const [showReasoning, setShowReasoning] = useState(false)
+
+  const steps = item.steps ?? []
+  const isAgent = steps.length > 0
 
   const copy = async () => {
     if (!item.output_text) return
@@ -42,15 +46,15 @@ export function RunItemCard({
       </header>
 
       <div className="grid grid-cols-4 gap-2 border-b border-ink-700 bg-ink-900/50 px-4 py-2.5">
-        <Metric label="Zeit" value={formatDuration(item.latency_ms)} />
-        <Metric label="Kosten" value={formatCost(item.cost_usd)} />
+        <Metric label="Time" value={formatDuration(item.latency_ms)} />
+        <Metric label="Cost" value={formatCost(item.cost_usd)} />
         <Metric label="In" value={formatTokens(item.prompt_tokens)} />
         <Metric
           label="Out"
           value={formatTokens(item.completion_tokens)}
           title={
             item.reasoning_tokens
-              ? `davon ${formatTokens(item.reasoning_tokens)} Reasoning-Token`
+              ? `of which ${formatTokens(item.reasoning_tokens)} reasoning tokens`
               : undefined
           }
         />
@@ -58,17 +62,32 @@ export function RunItemCard({
 
       <div className="min-h-0 flex-1 px-4 py-3">
         {item.status === 'pending' && (
-          <p className="py-8 text-center text-xs text-ink-500">Wartet auf freien Slot…</p>
+          <p className="py-8 text-center text-xs text-ink-500">Waiting for a free slot…</p>
         )}
-        {item.status === 'running' && (
-          <div className="flex items-center justify-center gap-2 py-8 text-xs text-ink-400">
-            <Spinner /> Antwort wird generiert…
+        {item.status === 'running' &&
+          (isAgent ? (
+            // Agent runs record their steps as they go -- show them live.
+            <div className={cx('overflow-y-auto', compact ? 'max-h-96' : 'max-h-[32rem]')}>
+              <AgentTrace steps={steps} running />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 py-8 text-xs text-ink-400">
+              <Spinner /> Generating response…
+            </div>
+          ))}
+        {item.status === 'cancelled' && (
+          <p className="py-8 text-center text-xs text-amber-400">Cancelled.</p>
+        )}
+        {item.status === 'failed' && (
+          <div className="space-y-3">
+            <ErrorBox>{item.error ?? 'Unknown error'}</ErrorBox>
+            {isAgent && (
+              <div className={cx('overflow-y-auto', compact && 'max-h-80')}>
+                <AgentTrace steps={steps} />
+              </div>
+            )}
           </div>
         )}
-        {item.status === 'cancelled' && (
-          <p className="py-8 text-center text-xs text-amber-400">Abgebrochen.</p>
-        )}
-        {item.status === 'failed' && <ErrorBox>{item.error ?? 'Unbekannter Fehler'}</ErrorBox>}
 
         {item.status === 'completed' && item.output_text && (
           <div className="space-y-3">
@@ -81,7 +100,7 @@ export function RunItemCard({
                   <ChevronDown
                     className={cx('h-3.5 w-3.5 transition', showReasoning && 'rotate-180')}
                   />
-                  Reasoning ({formatTokens(item.reasoning_tokens)} Token)
+                  Reasoning ({formatTokens(item.reasoning_tokens)} tokens)
                 </button>
                 {showReasoning && (
                   <pre className="max-h-72 overflow-y-auto border-t border-ink-700 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-ink-400">
@@ -92,7 +111,9 @@ export function RunItemCard({
             )}
 
             <div className={cx('overflow-x-auto', compact && 'max-h-96 overflow-y-auto')}>
-              {view === 'rendered' ? (
+              {view === 'trace' ? (
+                <AgentTrace steps={steps} />
+              ) : view === 'rendered' ? (
                 <ResultRenderer
                   text={item.output_text}
                   mode={renderMode}
@@ -112,11 +133,16 @@ export function RunItemCard({
         <footer className="flex items-center justify-between gap-2 border-t border-ink-700 px-3 py-2">
           <div className="flex items-center gap-1">
             <ViewTab active={view === 'rendered'} onClick={() => setView('rendered')}>
-              Gerendert
+              Rendered
             </ViewTab>
             <ViewTab active={view === 'raw'} onClick={() => setView('raw')}>
-              Rohtext
+              Raw
             </ViewTab>
+            {isAgent && (
+              <ViewTab active={view === 'trace'} onClick={() => setView('trace')}>
+                Trace ({steps.filter((s) => s.type === 'tool_result').length})
+              </ViewTab>
+            )}
             {item.finish_reason && item.finish_reason !== 'stop' && (
               <Badge tone="amber" title="finish_reason">
                 {item.finish_reason}
@@ -126,10 +152,10 @@ export function RunItemCard({
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" onClick={copy}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Kopiert' : 'Kopieren'}
+              {copied ? 'Copied' : 'Copy'}
             </Button>
             {onExpand && (
-              <Button size="sm" variant="ghost" onClick={onExpand} title="Groß anzeigen">
+              <Button size="sm" variant="ghost" onClick={onExpand} title="Show large">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             )}

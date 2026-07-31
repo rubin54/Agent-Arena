@@ -45,7 +45,7 @@ export function ModelCard({
         <button
           onClick={onToggle}
           aria-pressed={selected}
-          aria-label={selected ? 'Modell abwählen' : 'Modell auswählen'}
+          aria-label={selected ? 'Deselect model' : 'Select model'}
           className={cx(
             'mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border transition',
             selected
@@ -66,11 +66,11 @@ export function ModelCard({
 
       <div className="mt-3 flex flex-wrap gap-1">
         <Badge tone="neutral">{providerLabel(model.provider)}</Badge>
-        {free && <Badge tone="green">kostenlos</Badge>}
+        {free && <Badge tone="green">free</Badge>}
         {extraModalities.map((mod) => {
           const Icon = MODALITY_ICON[mod]
           return (
-            <Badge key={mod} tone="blue" title={`Input-Modalität: ${mod}`}>
+            <Badge key={mod} tone="blue" title={`Input modality: ${mod}`}>
               {Icon && <Icon className="h-3 w-3" />}
               {mod}
             </Badge>
@@ -95,7 +95,7 @@ export function ModelCard({
 
       {model.max_completion_tokens ? (
         <p className="mt-2 text-[11px] text-ink-500">
-          max. Output: {formatTokens(model.max_completion_tokens)} Token
+          max output: {formatTokens(model.max_completion_tokens)} tokens
         </p>
       ) : null}
     </div>

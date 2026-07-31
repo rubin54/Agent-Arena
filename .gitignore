@@ -7,7 +7,7 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 
-# Secrets & lokale Konfiguration
+# Secrets & local configuration
 .env
 backend/.env
 *.local

@@ -46,7 +46,7 @@ async def create_task(payload: TaskCreate, session: AsyncSession = Depends(get_s
 async def get_task(task_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> TaskOut:
     task = await session.get(Task, task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task nicht gefunden")
+        raise HTTPException(status_code=404, detail="Task not found")
     return TaskOut.model_validate(task)
 
 
@@ -56,7 +56,7 @@ async def update_task(
 ) -> TaskOut:
     task = await session.get(Task, task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task nicht gefunden")
+        raise HTTPException(status_code=404, detail="Task not found")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
@@ -71,7 +71,7 @@ async def duplicate_task(
 ) -> TaskOut:
     task = await session.get(Task, task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task nicht gefunden")
+        raise HTTPException(status_code=404, detail="Task not found")
 
     clone = Task(
         name=f"{task.name} (Kopie)",
@@ -97,14 +97,14 @@ async def duplicate_task(
 async def delete_task(task_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> None:
     task = await session.get(Task, task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task nicht gefunden")
+        raise HTTPException(status_code=404, detail="Task not found")
     await session.delete(task)
     await session.commit()
 
 
 @router.post("/preview", response_model=PreviewResponse)
 async def preview_prompt(payload: PreviewRequest) -> PreviewResponse:
-    """Rendert das Template mit den übergebenen Werten -- ohne ein Modell anzufragen."""
+    """Render the template with the given values -- without calling a model."""
     detected = templating.extract_variables(payload.system_prompt, payload.prompt_template)
     return PreviewResponse(
         detected_variables=detected,

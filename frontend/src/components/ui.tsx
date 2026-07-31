@@ -91,11 +91,11 @@ export function Badge({
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { tone: Parameters<typeof Badge>[0]['tone']; label: string }> = {
-    pending: { tone: 'neutral', label: 'Wartet' },
-    running: { tone: 'blue', label: 'Läuft' },
-    completed: { tone: 'green', label: 'Fertig' },
-    failed: { tone: 'red', label: 'Fehler' },
-    cancelled: { tone: 'amber', label: 'Abgebrochen' },
+    pending: { tone: 'neutral', label: 'Waiting' },
+    running: { tone: 'blue', label: 'Running' },
+    completed: { tone: 'green', label: 'Done' },
+    failed: { tone: 'red', label: 'Failed' },
+    cancelled: { tone: 'amber', label: 'Cancelled' },
   }
   const entry = map[status] ?? { tone: 'neutral' as const, label: status }
   return (
@@ -145,7 +145,7 @@ export function Modal({
           <button
             onClick={onClose}
             className="rounded-md p-1 text-ink-400 transition hover:bg-ink-800 hover:text-ink-100"
-            aria-label="Schließen"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
@@ -159,7 +159,7 @@ export function Modal({
   )
 }
 
-// --------------------------------------------------------------------- Diverses
+// --------------------------------------------------------------------- Misc
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cx('h-4 w-4 animate-spin text-ink-400', className)} />

@@ -11,9 +11,9 @@ export function RunsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-lg font-semibold">Run-Historie</h1>
+        <h1 className="text-lg font-semibold">Run history</h1>
         <p className="mt-0.5 text-xs text-ink-500">
-          Jede Ausführung wird mit Prompt-Snapshot, Kosten und Ergebnissen archiviert.
+          Every execution is archived with a prompt snapshot, cost and results.
         </p>
       </header>
 
@@ -26,11 +26,11 @@ export function RunsPage() {
       ) : !runs?.length ? (
         <EmptyState
           icon={<History className="h-8 w-8" />}
-          title="Noch keine Runs"
-          hint="Starte eine Aufgabe gegen ein paar Modelle – die Ergebnisse landen hier."
+          title="No runs yet"
+          hint="Run a task against a few models -- the results land here."
           action={
             <Link to="/tasks">
-              <Button variant="primary">Zu den Aufgaben</Button>
+              <Button variant="primary">Go to tasks</Button>
             </Link>
           }
         />
@@ -39,12 +39,12 @@ export function RunsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-ink-700 text-left text-[11px] tracking-wider text-ink-500 uppercase">
-                <th className="px-4 py-2.5 font-medium">Aufgabe</th>
+                <th className="px-4 py-2.5 font-medium">Task</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">Modelle</th>
-                <th className="px-4 py-2.5 font-medium">Kosten</th>
-                <th className="px-4 py-2.5 font-medium">Dauer</th>
-                <th className="px-4 py-2.5 font-medium">Gestartet</th>
+                <th className="px-4 py-2.5 font-medium">Models</th>
+                <th className="px-4 py-2.5 font-medium">Cost</th>
+                <th className="px-4 py-2.5 font-medium">Duration</th>
+                <th className="px-4 py-2.5 font-medium">Started</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
@@ -88,9 +88,9 @@ export function RunsPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      title="Run löschen"
+                      title="Delete run"
                       onClick={() => {
-                        if (confirm('Diesen Run löschen?')) deleteRun.mutate(run.id)
+                        if (confirm('Delete this run?')) deleteRun.mutate(run.id)
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

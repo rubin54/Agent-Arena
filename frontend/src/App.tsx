@@ -9,10 +9,10 @@ import { cx } from './components/ui'
 import { useSelection } from './state/selection'
 
 const NAV = [
-  { to: '/models', label: 'Modelle', icon: Boxes },
-  { to: '/tasks', label: 'Aufgaben', icon: ListChecks },
+  { to: '/models', label: 'Models', icon: Boxes },
+  { to: '/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/runs', label: 'Runs', icon: History },
-  { to: '/settings', label: 'Einstellungen', icon: SettingsIcon },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
 export default function App() {

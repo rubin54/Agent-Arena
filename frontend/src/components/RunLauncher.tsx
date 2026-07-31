@@ -1,4 +1,4 @@
-import { Play, Search, X } from 'lucide-react'
+import { AlertTriangle, Play, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCreateRun, useModels } from '../api/queries'
@@ -32,8 +32,8 @@ export function RunLauncher({
     return syncVariables(detected, task.variables)
   }, [task])
 
-  // Beim Öffnen: aktuelle Auswahl aus dem Katalog übernehmen, sonst die zuletzt
-  // für diese Task benutzten Modelle.
+  // On open: take the current catalog selection, otherwise the models last used
+  // for this task.
   useEffect(() => {
     if (!open || !task) return
     setModelIds(selection.selected.length ? selection.selected : task.default_model_ids)
@@ -45,14 +45,29 @@ export function RunLauncher({
 
   const models = catalog?.models ?? []
   const byId = useMemo(() => new Map(models.map((m) => [m.id, m])), [models])
+  const isAgent = task?.kind === 'agent'
 
   const matches = useMemo(() => {
     const q = needle.trim().toLowerCase()
     if (!q) return []
     return models
       .filter((m) => `${m.name} ${m.id}`.toLowerCase().includes(q))
+      // For agent tasks only offer models capable of tool calling.
+      .filter((m) => !isAgent || m.supported_parameters.includes('tools'))
       .slice(0, 30)
-  }, [models, needle])
+  }, [models, needle, isAgent])
+
+  // Already-selected models that are unusable for an agent run.
+  const unsupported = useMemo(
+    () =>
+      isAgent
+        ? modelIds.filter((id) => {
+            const model = byId.get(id)
+            return model !== undefined && !model.supported_parameters.includes('tools')
+          })
+        : [],
+    [isAgent, modelIds, byId],
+  )
 
   if (!task) return null
 
@@ -74,11 +89,11 @@ export function RunLauncher({
       open={open}
       onClose={onClose}
       wide
-      title={`Run starten – ${task.name}`}
+      title={`Start run – ${task.name}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Abbrechen
+            Cancel
           </Button>
           <Button
             variant="primary"
@@ -87,7 +102,7 @@ export function RunLauncher({
             loading={createRun.isPending}
           >
             <Play className="h-3.5 w-3.5" />
-            {modelIds.length ? `Gegen ${modelIds.length} Modelle starten` : 'Modelle wählen'}
+            {modelIds.length ? `Run against ${modelIds.length} models` : 'Select models'}
           </Button>
         </>
       }
@@ -97,14 +112,14 @@ export function RunLauncher({
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="label mb-0">Modelle</span>
+            <span className="label mb-0">Models</span>
             <div className="flex items-center gap-2">
               {selection.selected.length > 0 && (
                 <button
                   onClick={() => setModelIds(selection.selected)}
                   className="text-xs text-accent-400 hover:underline"
                 >
-                  Katalog-Auswahl übernehmen ({selection.selected.length})
+                  Use catalog selection ({selection.selected.length})
                 </button>
               )}
               {modelIds.length > 0 && (
@@ -112,7 +127,7 @@ export function RunLauncher({
                   onClick={() => setModelIds([])}
                   className="text-xs text-ink-500 hover:text-ink-300"
                 >
-                  Leeren
+                  Clear
                 </button>
               )}
             </div>
@@ -128,8 +143,8 @@ export function RunLauncher({
                     onClick={() => toggle(id)}
                     title={
                       model
-                        ? `In ${pricePerMillion(model.price_prompt)} / Out ${pricePerMillion(model.price_completion)} pro 1M`
-                        : 'Nicht im Katalog'
+                        ? `in ${pricePerMillion(model.price_prompt)} / out ${pricePerMillion(model.price_completion)} per 1M`
+                        : 'Not in catalog'
                     }
                     className="inline-flex items-center gap-1.5 rounded-md border border-ink-600 bg-ink-800 px-2 py-1 text-xs text-ink-200 transition hover:border-red-800 hover:text-red-300"
                   >
@@ -141,8 +156,26 @@ export function RunLauncher({
             </div>
           ) : (
             <p className="text-xs text-ink-500">
-              Noch keine Modelle gewählt. Suche unten oder wähle sie im Modell-Katalog aus.
+              No models selected yet. Search below or pick them in the model catalog.
             </p>
+          )}
+
+          {unsupported.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p>
+                  {unsupported.length} selected model{unsupported.length === 1 ? '' : 's'}{' '}
+                  cannot do tool calling and would fail immediately.
+                </p>
+                <button
+                  onClick={() => setModelIds((prev) => prev.filter((id) => !unsupported.includes(id)))}
+                  className="mt-1 underline underline-offset-2 hover:text-amber-200"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
           )}
 
           <div className="relative">
@@ -150,7 +183,9 @@ export function RunLauncher({
             <input
               value={needle}
               onChange={(e) => setNeedle(e.target.value)}
-              placeholder="Modell suchen und hinzufügen…"
+              placeholder={
+                isAgent ? 'Search a model with tool calling…' : 'Search and add a model…'
+              }
               className="field pl-9"
             />
           </div>
@@ -184,7 +219,7 @@ export function RunLauncher({
 
         {variables.length > 0 && (
           <section className="space-y-2">
-            <span className="label mb-0">Variablen</span>
+            <span className="label mb-0">Variables</span>
             {variables.map((v) => (
               <div key={v.name}>
                 <label className="mb-1 flex items-baseline gap-2 text-xs">
@@ -203,10 +238,16 @@ export function RunLauncher({
         )}
 
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2.5 text-xs text-ink-400">
-          <Badge tone="neutral">{task.render_mode}</Badge>
+          <Badge tone={isAgent ? 'accent' : 'neutral'}>
+            {isAgent ? 'Agent' : task.render_mode}
+          </Badge>
           <span>
-            {modelIds.length} Modell{modelIds.length === 1 ? '' : 'e'} · Anfragen laufen parallel,
-            das Ergebnis füllt sich live.
+            {modelIds.length} model{modelIds.length === 1 ? '' : 's'} ·{' '}
+            {isAgent
+              ? `one container each, max. ${task.agent_config.max_steps ?? 12} steps, network ${
+                  task.agent_config.network ? 'on' : 'off'
+                }.`
+              : 'Requests run in parallel; results fill in live.'}
           </span>
         </div>
       </div>

@@ -1,22 +1,23 @@
-import { AlertTriangle, Eye, Save, Trash2 } from 'lucide-react'
+import { Eye, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { RenderMode, Task, TaskInput, TaskKind } from '../api/types'
+import type { AgentConfig, RenderMode, Task, TaskInput, TaskKind } from '../api/types'
 import { extractVariables, renderTemplate, syncVariables } from '../lib/template'
+import { AgentConfigEditor } from './AgentConfigEditor'
 import { Select } from './FilterControls'
 import { Badge, Button, ErrorBox, Modal, cx } from './ui'
 
 const RENDER_MODES: { value: RenderMode; label: string }[] = [
-  { value: 'auto', label: 'Automatisch erkennen' },
+  { value: 'auto', label: 'Detect automatically' },
   { value: 'markdown', label: 'Markdown' },
-  { value: 'html', label: 'HTML (Sandbox-Preview)' },
+  { value: 'html', label: 'HTML (sandbox preview)' },
   { value: 'json', label: 'JSON' },
   { value: 'code', label: 'Code' },
-  { value: 'text', label: 'Klartext' },
+  { value: 'text', label: 'Plain text' },
 ]
 
 const KINDS: { value: TaskKind; label: string }[] = [
-  { value: 'one_shot', label: 'One-Shot Prompt' },
-  { value: 'agent', label: 'Agent-Harness (in Arbeit)' },
+  { value: 'one_shot', label: 'One-shot prompt' },
+  { value: 'agent', label: 'Agent (tools in sandbox)' },
 ]
 
 const KNOWN_PARAMS = ['temperature', 'max_tokens', 'top_p'] as const
@@ -70,7 +71,7 @@ export function TaskEditor({
   )
   const [preview, setPreview] = useState(false)
 
-  // Beim Wechsel der ausgewählten Task den Entwurf komplett neu aufsetzen.
+  // Rebuild the draft from scratch whenever a different task is selected.
   const taskId = 'id' in task ? task.id : '__new__'
   useEffect(() => {
     const next = { ...EMPTY_TASK, ...task }
@@ -126,19 +127,19 @@ export function TaskEditor({
     <div className="space-y-6">
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <Section title="Grunddaten">
+      <Section title="Basics">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="label">Name</label>
             <input
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
-              placeholder="z. B. Landing-Page aus Briefing"
+              placeholder="e.g. landing page from a brief"
               className="field"
             />
           </div>
           <div>
-            <label className="label">Typ</label>
+            <label className="label">Type</label>
             <Select
               value={draft.kind}
               options={KINDS}
@@ -147,46 +148,37 @@ export function TaskEditor({
           </div>
         </div>
         <div>
-          <label className="label">Beschreibung</label>
+          <label className="label">Description</label>
           <input
             value={draft.description}
             onChange={(e) => patch({ description: e.target.value })}
-            placeholder="Wozu dient diese Aufgabe?"
+            placeholder="What is this task for?"
             className="field"
           />
         </div>
-        {draft.kind === 'agent' && (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Agent-Tasks lassen sich speichern, aber noch nicht ausführen – das Harness kommt im
-              nächsten Schritt.
-            </span>
-          </div>
-        )}
       </Section>
 
       <Section
         title="Prompt"
-        hint="Platzhalter im Format {{name}} werden automatisch als Variable erkannt."
+        hint="Placeholders written as {{name}} are detected as variables automatically."
       >
         <div>
-          <label className="label">System-Prompt</label>
+          <label className="label">System prompt</label>
           <textarea
             value={draft.system_prompt}
             onChange={(e) => patch({ system_prompt: e.target.value })}
             rows={4}
-            placeholder="Optionale Rollen-/Verhaltensvorgabe"
+            placeholder="Optional role or behaviour instruction"
             className="field resize-y font-mono text-xs"
           />
         </div>
         <div>
-          <label className="label">User-Prompt</label>
+          <label className="label">User prompt</label>
           <textarea
             value={draft.prompt_template}
             onChange={(e) => patch({ prompt_template: e.target.value })}
             rows={10}
-            placeholder="Schreibe eine Landing-Page für {{produkt}} …"
+            placeholder="Write a landing page for {{product}} …"
             className="field resize-y font-mono text-xs"
           />
         </div>
@@ -194,7 +186,7 @@ export function TaskEditor({
         {variables.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="label mb-0">Erkannte Variablen</span>
+              <span className="label mb-0">Detected variables</span>
               <Badge tone="accent">{variables.length}</Badge>
             </div>
             <div className="space-y-2">
@@ -206,13 +198,13 @@ export function TaskEditor({
                   <input
                     value={v.description}
                     onChange={(e) => setVariable(v.name, { description: e.target.value })}
-                    placeholder="Beschreibung"
+                    placeholder="Description"
                     className="field"
                   />
                   <input
                     value={v.default}
                     onChange={(e) => setVariable(v.name, { default: e.target.value })}
-                    placeholder="Standardwert"
+                    placeholder="Default value"
                     className="field"
                   />
                 </div>
@@ -223,14 +215,26 @@ export function TaskEditor({
 
         <Button variant="ghost" size="sm" onClick={() => setPreview(true)}>
           <Eye className="h-3.5 w-3.5" />
-          Prompt-Vorschau
+          Prompt preview
         </Button>
       </Section>
 
-      <Section title="Ausgabe">
+      {draft.kind === 'agent' && (
+        <Section
+          title="Agent harness"
+          hint="Only models with tool calling can run agent tasks."
+        >
+          <AgentConfigEditor
+            config={draft.agent_config as AgentConfig}
+            onChange={(agent_config) => patch({ agent_config })}
+          />
+        </Section>
+      )}
+
+      <Section title="Output">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="label">Darstellung des Ergebnisses</label>
+            <label className="label">How the result is rendered</label>
             <Select
               value={draft.render_mode}
               options={RENDER_MODES}
@@ -239,7 +243,7 @@ export function TaskEditor({
           </div>
           {draft.render_mode === 'code' && (
             <div>
-              <label className="label">Sprache für Syntax-Highlighting</label>
+              <label className="label">Language for syntax highlighting</label>
               <input
                 value={draft.code_language ?? ''}
                 onChange={(e) => patch({ code_language: e.target.value })}
@@ -253,7 +257,7 @@ export function TaskEditor({
         {draft.render_mode === 'json' && (
           <div>
             <label className="label">
-              JSON-Schema (optional – erzwingt Structured Output beim Modell)
+              JSON schema (optional -- forces structured output from the model)
             </label>
             <textarea
               value={schemaText}
@@ -264,36 +268,36 @@ export function TaskEditor({
             />
             {schemaError && <p className="mt-1 text-xs text-red-400">{schemaError}</p>}
             <p className="mt-1 text-xs text-ink-500">
-              Wird nur an Modelle geschickt, die <code>structured_outputs</code> unterstützen –
-              andere Modelle antworten dann evtl. frei formuliert.
+              Only sent to models that support <code>structured_outputs</code>; other
+              models may answer in free form instead.
             </p>
           </div>
         )}
       </Section>
 
-      <Section title="Modell-Parameter" hint="Gelten für alle Modelle dieses Runs.">
+      <Section title="Model parameters" hint="Applied to every model in this run.">
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
             label="Temperature"
             value={knownParams.temperature ?? ''}
-            placeholder="Modell-Default"
+            placeholder="Model default"
             onChange={(v) => setKnownParams((p) => ({ ...p, temperature: v }))}
           />
           <NumberField
             label="Max Tokens"
             value={knownParams.max_tokens ?? ''}
-            placeholder="Modell-Default"
+            placeholder="Model default"
             onChange={(v) => setKnownParams((p) => ({ ...p, max_tokens: v }))}
           />
           <NumberField
             label="Top P"
             value={knownParams.top_p ?? ''}
-            placeholder="Modell-Default"
+            placeholder="Model default"
             onChange={(v) => setKnownParams((p) => ({ ...p, top_p: v }))}
           />
         </div>
         <div>
-          <label className="label">Weitere Parameter (JSON, wird 1:1 durchgereicht)</label>
+          <label className="label">Additional parameters (JSON, passed through verbatim)</label>
           <textarea
             value={extraParams}
             onChange={(e) => setExtraParams(e.target.value)}
@@ -309,14 +313,14 @@ export function TaskEditor({
         {onDelete ? (
           <Button variant="danger" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
-            Löschen
+            Delete
           </Button>
         ) : (
           <span />
         )}
         <Button variant="primary" onClick={handleSave} disabled={!canSave} loading={saving}>
           <Save className="h-3.5 w-3.5" />
-          Speichern
+          Save
         </Button>
       </div>
 
@@ -345,7 +349,7 @@ function PromptPreviewModal({
   values: Record<string, string>
 }) {
   return (
-    <Modal open={open} onClose={onClose} title="Prompt-Vorschau (mit Standardwerten)" wide>
+    <Modal open={open} onClose={onClose} title="Prompt preview (with default values)" wide>
       <div className="space-y-4">
         {systemPrompt.trim() && (
           <div>
@@ -358,7 +362,7 @@ function PromptPreviewModal({
         <div>
           <span className="label">User</span>
           <pre className="overflow-x-auto rounded-lg border border-ink-700 bg-ink-900 p-3 font-mono text-xs whitespace-pre-wrap">
-            {renderTemplate(userPrompt, values) || '(leer)'}
+            {renderTemplate(userPrompt, values) || '(empty)'}
           </pre>
         </div>
       </div>
@@ -428,6 +432,6 @@ function parseError(text: string): string | null {
     JSON.parse(text)
     return null
   } catch (e) {
-    return `Ungültiges JSON: ${(e as Error).message}`
+    return `Invalid JSON: ${(e as Error).message}`
   }
 }

@@ -17,7 +17,7 @@ function Primitive({ value }: { value: unknown }) {
 }
 
 function Node({ name, value, depth }: { name: string | null; value: unknown; depth: number }) {
-  // Tiefe Verschachtelungen bleiben eingeklappt, damit lange Antworten überschaubar bleiben.
+  // Deep nesting stays collapsed so long responses remain manageable.
   const [open, setOpen] = useState(depth < 2)
   const isObject = value !== null && typeof value === 'object'
 

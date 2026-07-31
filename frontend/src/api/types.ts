@@ -54,13 +54,69 @@ export interface Task {
   code_language: string | null
   json_schema: Record<string, unknown> | null
   params: Record<string, unknown>
-  agent_config: Record<string, unknown>
+  agent_config: AgentConfig
   default_model_ids: string[]
   created_at: string
   updated_at: string
 }
 
 export type TaskInput = Omit<Task, 'id' | 'created_at' | 'updated_at'>
+
+export interface SetupFile {
+  path: string
+  content: string
+}
+
+export interface AgentConfig {
+  max_steps?: number
+  network?: boolean
+  command_timeout_s?: number
+  memory_mb?: number
+  cpus?: number
+  tools?: string[]
+  setup_files?: SetupFile[]
+}
+
+export interface ToolInfo {
+  name: string
+  label: string
+  description: string
+}
+
+export interface SandboxStatus {
+  docker_available: boolean
+  image_ready: boolean
+  image: string
+  message: string
+}
+
+export interface StepToolCall {
+  id: string | null
+  name: string | null
+  arguments: Record<string, unknown>
+}
+
+/** One entry in the agent trace. Which fields are set depends on `type`. */
+export interface RunStep {
+  index: number
+  type: 'assistant' | 'tool_result' | 'setup'
+  // type: 'assistant'
+  turn?: number
+  content?: string | null
+  reasoning?: string | null
+  tool_calls?: StepToolCall[]
+  latency_ms?: number
+  finish_reason?: string | null
+  // type: 'tool_result'
+  name?: string
+  arguments?: Record<string, unknown>
+  output?: string
+  ok?: boolean
+  meta?: { exit_code?: number; timed_out?: boolean; command?: string; path?: string }
+  duration_ms?: number
+  // type: 'setup'
+  files?: string[]
+}
 
 export interface RunItem {
   id: string
@@ -80,6 +136,7 @@ export interface RunItem {
   latency_ms: number | null
   started_at: string | null
   finished_at: string | null
+  steps: RunStep[]
 }
 
 export interface RunSummary {

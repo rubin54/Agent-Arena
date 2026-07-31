@@ -18,32 +18,32 @@ export function SettingsPage() {
   }
 
   const sourceLabel = {
-    override: 'App-Override (in der Datenbank)',
+    override: 'App override (stored in the database)',
     env: 'backend/.env',
-    none: 'nicht gesetzt',
+    none: 'not configured',
   }[settings.api_key_source]
 
   return (
     <div className="max-w-3xl space-y-6">
       <header>
-        <h1 className="text-lg font-semibold">Einstellungen</h1>
+        <h1 className="text-lg font-semibold">Settings</h1>
         <p className="mt-0.5 text-xs text-ink-500">
-          Alle OpenRouter-Aufrufe laufen über das Backend – der Key verlässt den Server nicht.
+          Every OpenRouter call goes through the backend -- the key never leaves the server.
         </p>
       </header>
 
       <section className="card space-y-4 p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">OpenRouter-API-Key</h2>
+          <h2 className="text-sm font-semibold">OpenRouter API key</h2>
           <Badge tone={settings.api_key_source === 'none' ? 'red' : 'green'}>{sourceLabel}</Badge>
         </div>
 
         {settings.api_key_masked && (
-          <p className="font-mono text-xs text-ink-400">Aktiv: {settings.api_key_masked}</p>
+          <p className="font-mono text-xs text-ink-400">Active: {settings.api_key_masked}</p>
         )}
 
         <div>
-          <label className="label">Key überschreiben</label>
+          <label className="label">Override the key</label>
           <div className="flex flex-wrap gap-2">
             <input
               type="password"
@@ -62,23 +62,22 @@ export function SettingsPage() {
                 setKeyInput('')
               }}
             >
-              Speichern
+              Save
             </Button>
             {settings.has_override && (
               <Button
                 variant="danger"
                 onClick={() => update.mutate({ openrouter_api_key: '' })}
                 loading={update.isPending}
-                title="Override löschen, .env greift wieder"
+                title="Delete the override so .env applies again"
               >
-                Override entfernen
+                Remove override
               </Button>
             )}
           </div>
           <p className="mt-1.5 text-xs text-ink-500">
-            Der Override wird im Klartext in der lokalen Postgres-Datenbank gespeichert. Für den
-            Dauerbetrieb ist <code className="text-ink-300">backend/.env</code> die sauberere
-            Variante.
+            The override is stored in plain text in the local Postgres database. For everyday
+            use <code className="text-ink-300">backend/.env</code> is the cleaner option.
           </p>
         </div>
 
@@ -87,7 +86,7 @@ export function SettingsPage() {
         <div className="flex flex-wrap items-center gap-3 border-t border-ink-700 pt-4">
           <Button onClick={() => check.mutate()} loading={check.isPending}>
             <Plug className="h-3.5 w-3.5" />
-            Verbindung testen
+            Test connection
           </Button>
           {check.data && (
             <span
@@ -106,28 +105,28 @@ export function SettingsPage() {
         </div>
         {check.data && !check.data.ok && (
           <p className="text-xs text-ink-500">
-            Der Test schickt einen 1-Token-Request an <code>openai/gpt-4o-mini</code>. Schlägt er
-            fehl, stimmt entweder der Key nicht oder das Konto hat kein Guthaben.
+            The test sends a one-token request to <code>openai/gpt-4o-mini</code>. If it fails,
+            either the key is wrong or the account has no credit.
           </p>
         )}
       </section>
 
       <section className="card space-y-4 p-5">
-        <h2 className="text-sm font-semibold">Backend-Konfiguration</h2>
+        <h2 className="text-sm font-semibold">Backend configuration</h2>
         <p className="text-xs text-ink-500">
-          Diese Werte kommen aus <code className="text-ink-300">backend/.env</code> und werden beim
-          Start gelesen.
+          These values come from <code className="text-ink-300">backend/.env</code> and are read
+          at startup.
         </p>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Stat label="Base URL" value={<span className="text-xs">{settings.base_url}</span>} />
-          <Stat label="App-Name" value={<span className="text-xs">{settings.app_name}</span>} />
+          <Stat label="App name" value={<span className="text-xs">{settings.app_name}</span>} />
           <Stat
             label="Site URL"
             value={<span className="text-xs">{settings.site_url ?? '—'}</span>}
           />
-          <Stat label="Parallelität" value={settings.run_concurrency} />
+          <Stat label="Concurrency" value={settings.run_concurrency} />
           <Stat label="Timeout" value={`${settings.request_timeout_s} s`} />
-          <Stat label="Katalog-TTL" value={`${settings.catalog_ttl_minutes} min`} />
+          <Stat label="Catalog TTL" value={`${settings.catalog_ttl_minutes} min`} />
         </div>
       </section>
     </div>

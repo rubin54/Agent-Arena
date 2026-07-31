@@ -33,7 +33,7 @@ export function Select<T extends string | number | null>({
   )
 }
 
-/** Mehrfachauswahl in einem Dropdown -- für Provider-Listen mit dreistelliger Länge. */
+/** Multi-select in a dropdown -- for provider lists with hundreds of entries. */
 export function MultiSelect({
   label,
   options,
@@ -89,7 +89,7 @@ export function MultiSelect({
               autoFocus
               value={needle}
               onChange={(e) => setNeedle(e.target.value)}
-              placeholder="Suchen…"
+              placeholder="Search…"
               className="field mb-1 h-8 text-xs"
             />
           )}
@@ -98,7 +98,7 @@ export function MultiSelect({
               onClick={() => onChange([])}
               className="mb-1 w-full rounded px-2 py-1.5 text-left text-xs text-ink-400 hover:bg-ink-800 hover:text-ink-100"
             >
-              Auswahl zurücksetzen
+              Clear selection
             </button>
           )}
           {visible.map((o) => (
@@ -116,7 +116,7 @@ export function MultiSelect({
               {o.hint && <span className="font-mono text-[10px] text-ink-500">{o.hint}</span>}
             </label>
           ))}
-          {!visible.length && <p className="px-2 py-3 text-xs text-ink-500">Keine Treffer</p>}
+          {!visible.length && <p className="px-2 py-3 text-xs text-ink-500">No matches</p>}
         </div>
       )}
     </div>

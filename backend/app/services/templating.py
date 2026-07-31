@@ -5,7 +5,7 @@ VARIABLE_PATTERN = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
 
 def extract_variables(*texts: str) -> list[str]:
-    """Alle {{variablen}} in Reihenfolge des ersten Auftretens."""
+    """All {{variables}} in order of first appearance."""
     seen: list[str] = []
     for text in texts:
         for match in VARIABLE_PATTERN.finditer(text or ""):
@@ -16,8 +16,8 @@ def extract_variables(*texts: str) -> list[str]:
 
 
 def render(template: str, values: dict[str, Any]) -> str:
-    """Ersetzt {{name}} durch den Wert. Unbekannte Platzhalter bleiben unverändert stehen,
-    damit ein Tippfehler im Template sichtbar wird statt still zu verschwinden."""
+    """Replace {{name}} with its value. Unknown placeholders are left untouched so a
+    typo in the template stays visible instead of silently disappearing."""
     if not template:
         return ""
 
@@ -33,7 +33,7 @@ def render(template: str, values: dict[str, Any]) -> str:
 def resolve_values(
     variables: list[dict[str, Any]], provided: dict[str, Any], template_names: list[str]
 ) -> dict[str, Any]:
-    """Defaults aus der Task-Definition mit den übergebenen Werten mergen."""
+    """Merge the task defaults with the values supplied by the caller."""
     values: dict[str, Any] = {}
     for name in template_names:
         values.setdefault(name, "")

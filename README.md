@@ -1,16 +1,16 @@
 # Agent Arena
 
-Lokales Dashboard, um LLMs über [OpenRouter](https://openrouter.ai) zu vergleichen: kompletter
-Modell-Katalog mit Preisen und Context-Längen, selbst definierte Aufgaben und One-Shot-Runs, die
-parallel gegen beliebig viele Modelle laufen — inklusive gerenderter Ergebnisse, Kosten und Latenzen.
+A local dashboard for comparing LLMs through [OpenRouter](https://openrouter.ai): the full model
+catalog with prices and context lengths, self-defined tasks, and one-shot runs executed against as
+many models as you like in parallel — including rendered results, cost and latency.
 
 **Stack:** React 18 + TypeScript + Vite + Tailwind v4 · FastAPI + SQLAlchemy (async) · PostgreSQL
 
 ---
 
-## Schnellstart
+## Quick start
 
-Voraussetzungen: Python 3.12+, Node 20+, Docker.
+Requirements: Python 3.12+, Node 20+, Docker.
 
 ```bash
 docker compose up -d
@@ -22,8 +22,8 @@ docker compose up -d
 cd backend && python -m venv .venv && .venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
-API-Key eintragen — entweder in `backend/.env` als `OPENROUTER_API_KEY=sk-or-v1-…`
-oder später im UI unter *Einstellungen*.
+Set the API key — either in `backend/.env` as `OPENROUTER_API_KEY=sk-or-v1-…` or later in the UI
+under *Settings*.
 
 ```bash
 cd backend && .venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
@@ -35,9 +35,9 @@ cd backend && .venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8
 cd frontend && npm install && npm run dev
 ```
 
-Dashboard: <http://localhost:5173> · API-Docs: <http://localhost:8000/docs>
+Dashboard: <http://localhost:5173> · API docs: <http://localhost:8000/docs>
 
-Optional vier Beispiel-Aufgaben anlegen (Markdown, HTML, JSON, Code):
+Optionally create five example tasks (Markdown, HTML, JSON, code, agent):
 
 ```bash
 cd backend && .venv/Scripts/python.exe seed.py
@@ -45,105 +45,150 @@ cd backend && .venv/Scripts/python.exe seed.py
 
 ---
 
-## Was die App kann
+## What the app does
 
-**Modell-Katalog** — alle bei OpenRouter verfügbaren Modelle als Kacheln mit Input-/Output-Preis
-(pro 1M Token), Context-Länge, max. Output, Modalitäten und Fähigkeiten (Tool Calling, Reasoning,
-Structured Output). Filterbar nach Anbieter, Fähigkeit, Modalität, Mindest-Context und Preisgrenze;
-sortierbar nach Preis, Context, Aktualität. Der Katalog wird lokal gecacht und nach Ablauf der TTL
-automatisch neu geladen.
+**Model catalog** — every model available on OpenRouter as a card, with input/output price (per 1M
+tokens), context length, max output, modalities and capabilities (tool calling, reasoning,
+structured output). Filterable by provider, capability, modality, minimum context and price ceiling;
+sortable by price, context and recency. The catalog is cached locally and refreshed automatically
+once the TTL expires.
 
-**Aufgaben** — wiederverwendbare Prompt-Definitionen mit System-Prompt, User-Template und
-`{{platzhaltern}}`, die automatisch als Variablen erkannt werden. Pro Aufgabe legst du fest, wie das
-Ergebnis dargestellt wird, und setzt Modell-Parameter (Temperature, Max Tokens, Top P sowie beliebige
-weitere als JSON, z. B. `{"reasoning": {"effort": "high"}}`).
+**Tasks** — reusable prompt definitions with a system prompt, a user template and `{{placeholders}}`
+that are detected as variables automatically. Each task defines how its result is rendered and sets
+model parameters (temperature, max tokens, top P, plus arbitrary extras as JSON, e.g.
+`{"reasoning": {"effort": "high"}}`).
 
-**Runs** — eine Aufgabe gegen N Modelle gleichzeitig. Die Anfragen laufen parallel (Semaphore,
-Standard 6), die Oberfläche füllt sich live. Pro Modell werden Antwort, Reasoning-Text,
-Token-Verbrauch, tatsächliche Kosten (`usage.cost` von OpenRouter) und Latenz erfasst. Ergebnisse
-lassen sich nach Geschwindigkeit, Kosten oder Antwortlänge sortieren und ein- oder zweispaltig
-nebeneinanderlegen.
+**Runs** — one task against N models at once. Requests run in parallel (semaphore, 6 by default) and
+the UI fills in live. For every model the response, reasoning text, token usage, actual cost
+(`usage.cost` from OpenRouter) and latency are recorded. Results can be sorted by speed, cost or
+answer length and placed side by side in one or two columns.
 
-**Ergebnis-Rendering** — je nach Aufgabe:
+**Result rendering** — depending on the task:
 
-| Modus | Darstellung |
+| Mode | Rendering |
 | --- | --- |
-| `markdown` | GitHub-Flavored Markdown inkl. Tabellen und Syntax-Highlighting |
-| `html` | Live-Preview in einem `sandbox`-iframe ohne `allow-same-origin` |
-| `json` | aufklappbarer Baum; optional per JSON-Schema als Structured Output erzwungen |
-| `code` | Syntax-Highlighting in der gewählten Sprache |
-| `auto` | erkennt JSON / vollständiges HTML / Code-Fences selbst |
+| `markdown` | GitHub-flavored Markdown including tables and syntax highlighting |
+| `html` | Live preview in a `sandbox` iframe without `allow-same-origin` |
+| `json` | Collapsible tree; optionally enforced as structured output via a JSON schema |
+| `code` | Syntax highlighting in the chosen language |
+| `auto` | Detects JSON, complete HTML documents and code fences on its own |
 
-**Historie** — jeder Run speichert einen Snapshot der Aufgabe. Spätere Änderungen am Prompt
-verfälschen alte Ergebnisse nicht. Runs lassen sich mit identischen Einstellungen wiederholen.
+**Agent harness** — tasks of type *agent* hand the model a set of tools and let it work in a loop
+until it is done or `max_steps` is reached. Every step is recorded and shown live in the UI: what the
+model reasoned, which tool it called with which arguments, and what came back.
+
+| Tool | Effect |
+| --- | --- |
+| `bash` | Shell command in the sandbox; returns exit_code, stdout and stderr |
+| `read_file` | Read a file from the workspace |
+| `write_file` | Write a file, creating missing directories |
+| `list_files` | List a directory recursively |
+
+Configurable per task: tool selection, maximum number of steps, per-command timeout, RAM, CPUs,
+network access, and starter files placed in the workspace before the first step. Models without tool
+calling are filtered out before launch and rejected with a clear message at run time.
+
+**History** — every run stores a snapshot of the task, so later prompt edits never distort old
+results. Runs can be repeated with identical settings.
 
 ---
 
-## Architektur
+## Architecture
 
 ```
 Agent-Arena/
-├── docker-compose.yml          Postgres 16 auf Port 5433
+├── docker-compose.yml          Postgres 16 on port 5433
 ├── backend/
 │   ├── app/
-│   │   ├── main.py             FastAPI-App, CORS, Schema-Init
-│   │   ├── config.py           Settings aus .env
-│   │   ├── models.py           SQLAlchemy: Katalog, Task, Run, RunItem, AppSetting
-│   │   ├── schemas.py          Pydantic-Schemas der API
-│   │   ├── openrouter.py       HTTP-Client inkl. Fehler-Normalisierung
-│   │   ├── routers/            /api/models, /api/tasks, /api/runs, /api/settings
+│   │   ├── main.py             FastAPI app, CORS, schema init
+│   │   ├── config.py           settings from .env
+│   │   ├── models.py           SQLAlchemy: catalog, Task, Run, RunItem, AppSetting
+│   │   ├── schemas.py          Pydantic schemas of the API
+│   │   ├── openrouter.py       HTTP client including error normalisation
+│   │   ├── routers/            /api/models, /api/tasks, /api/runs, /api/agent, /api/settings
 │   │   └── services/
-│   │       ├── catalog.py      Katalog laden und cachen
-│   │       ├── runner.py       parallele Ausführung, Kosten, Abbruch
-│   │       ├── templating.py   {{variablen}}
-│   │       └── settings_store.py  Key-Auflösung (Override vor .env)
-│   └── seed.py                 Beispiel-Aufgaben
+│   │       ├── catalog.py      fetch and cache the catalog
+│   │       ├── runner.py       parallel execution, cost, cancellation
+│   │       ├── agent.py        multi-turn agent loop
+│   │       ├── agent_tools.py  tool registry and schemas
+│   │       ├── sandbox.py      disposable Docker containers
+│   │       ├── templating.py   {{variables}}
+│   │       └── settings_store.py  key resolution (override beats .env)
+│   ├── sandbox/Dockerfile      sandbox base image
+│   └── seed.py                 example tasks
 └── frontend/src/
-    ├── api/                    Fetch-Wrapper, Typen, React-Query-Hooks
-    ├── components/             UI-Primitive, Modell-Karten, Ergebnis-Renderer
-    ├── lib/                    Formatierung, Filterlogik, Templating
-    ├── pages/                  Modelle, Aufgaben, Runs, Run-Detail, Einstellungen
-    └── state/selection.tsx     modellübergreifende Auswahl (überlebt Reloads)
+    ├── api/                    fetch wrapper, types, React Query hooks
+    ├── components/             UI primitives, model cards, result renderer, agent trace
+    ├── lib/                    formatting, filter logic, templating
+    ├── pages/                  models, tasks, runs, run detail, settings
+    └── state/selection.tsx     cross-page model selection (survives reloads)
 ```
 
-Ein Run wird per `POST /api/runs` angelegt und läuft als Hintergrund-Task weiter; das Frontend
-pollt `GET /api/runs/{id}`, solange der Status `running` oder `pending` ist. Das Schema wird beim
-Start via `create_all` angelegt — für ein lokales Tool bewusst ohne Migrations-Framework.
+A run is created via `POST /api/runs` and continues as a background task; the frontend polls
+`GET /api/runs/{id}` while the status is `running` or `pending`. The schema is created at startup via
+`create_all` — deliberately without a migration framework for a local tool.
 
-### Sicherheit
+### Security
 
-Der API-Key liegt ausschließlich im Backend. Das Frontend spricht relative `/api`-URLs an, die Vite
-im Dev-Betrieb auf `127.0.0.1:8000` proxyt — der Key erreicht den Browser nie. Ein im UI gesetzter
-Override landet im Klartext in der lokalen Datenbank und sticht die `.env`; für den Dauerbetrieb ist
-die `.env` die sauberere Variante. HTML-Ausgaben laufen in einem iframe mit `sandbox="allow-scripts"`
-ohne `allow-same-origin`, haben also keinen Zugriff auf die App oder deren Storage.
+The API key lives exclusively in the backend. The frontend talks to relative `/api` URLs, which Vite
+proxies to `127.0.0.1:8000` in development — the key never reaches the browser. An override set in
+the UI is stored in plain text in the local database and takes precedence over the `.env`; for
+everyday use the `.env` is the cleaner option. HTML output renders in an iframe with
+`sandbox="allow-scripts"` and without `allow-same-origin`, so it can reach neither the app nor its
+storage.
+
+**Agent sandbox.** Every agent run gets its own disposable container, which is removed afterwards. It
+has no mount onto your filesystem, no network by default, fixed limits for RAM, CPU and process
+count, no Linux capabilities (`--cap-drop ALL`), `no-new-privileges`, and runs as an unprivileged
+user. Tool paths are additionally constrained to `/workspace` so an agent cannot accidentally end up
+outside its working directory.
+
+The container's root filesystem stays writable on purpose — `read_only` would break `pip install` and
+`npm install` without gaining security, since the container is discarded anyway. The isolation
+boundary is the container, not the filesystem inside it.
+
+Enabling network access for a task attaches the container to the default bridge network, which lets
+it reach out. That is required for tasks that install packages or fetch data, but it does lift the
+outbound isolation. On backend startup, containers left behind by crashed runs are collected via the
+label `arena-sandbox=1`.
 
 ---
 
-## Konfiguration
+## Configuration
 
-Alle Werte in `backend/.env` (Vorlage: `.env.example`):
+All values live in `backend/.env` (template: `.env.example`):
 
-| Variable | Default | Bedeutung |
+| Variable | Default | Meaning |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY` | – | Key; im UI überschreibbar |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | API-Endpunkt |
-| `OPENROUTER_SITE_URL` / `_APP_NAME` | localhost / Agent Arena | `HTTP-Referer` und `X-Title` |
-| `DATABASE_URL` | `…@localhost:5433/arena` | muss zu `docker-compose.yml` passen |
-| `RUN_CONCURRENCY` | `6` | parallele Modell-Anfragen pro Run |
-| `REQUEST_TIMEOUT_S` | `300` | Timeout pro Modell |
-| `CATALOG_TTL_MINUTES` | `60` | ab wann der Katalog automatisch neu geladen wird |
+| `OPENROUTER_API_KEY` | – | API key; can be overridden in the UI |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | API endpoint |
+| `OPENROUTER_SITE_URL` / `_APP_NAME` | localhost / Agent Arena | `HTTP-Referer` and `X-Title` |
+| `DATABASE_URL` | `…@localhost:5433/arena` | must match `docker-compose.yml` |
+| `RUN_CONCURRENCY` | `6` | parallel model requests per one-shot run |
+| `AGENT_CONCURRENCY` | `3` | parallel containers per agent run |
+| `REQUEST_TIMEOUT_S` | `300` | timeout per model |
+| `CATALOG_TTL_MINUTES` | `60` | when the catalog is refreshed automatically |
+| `SANDBOX_IMAGE` | `agent-arena-sandbox:latest` | image used for the agent sandbox |
+| `DOCKER_BINARY` | `docker` | path to the Docker CLI if it is not on PATH |
+
+The sandbox image is built automatically on the first agent run. To build it up front:
+
+```bash
+docker build -t agent-arena-sandbox:latest backend/sandbox
+```
+
+It contains Python 3.12, Node, npm, git, curl, jq, ripgrep and tree.
 
 ---
 
-## Stand und nächster Schritt
+## Status and next step
 
-Das One-Shot-Fundament ist vollständig: Katalog, Aufgaben, parallele Runs, Rendering, Kosten,
-Historie.
+Implemented: catalog, tasks, parallel one-shot runs, agent harness with a Docker sandbox, rendering,
+cost tracking, history.
 
-**Agent-Harness (noch offen).** Datenmodell und Runner sind darauf vorbereitet — `Task.kind`
-kennt bereits `agent`, `Task.agent_config` steht für Tool-Konfiguration bereit, und `RunItem.messages`
-/ `RunItem.steps` können einen mehrstufigen Verlauf mit Tool-Calls aufnehmen. Aufgaben vom Typ
-`agent` lassen sich anlegen und speichern; `POST /api/runs` lehnt sie derzeit mit HTTP 400 ab. Zu
-bauen sind: Tool-Registry mit Sandbox, Multi-Turn-Loop in `services/runner.py` und die
-Schritt-Visualisierung im Frontend.
+**Open — evaluating results.** Runs place answers side by side, but nothing records which one was
+good. Worth adding: a manual rating per result, automatic checks (JSON schema, regex, "must
+contain"), assertions for agent runs (file exists, command exits 0) and a leaderboard across runs.
+
+Further ideas: streaming instead of polling, N repetitions per model to measure variance, CSV export,
+image inputs for multimodal models.

@@ -1,8 +1,8 @@
-/** OpenRouter liefert Preise als USD pro Token. Angezeigt wird pro 1 Mio. Token. */
+/** OpenRouter reports prices as USD per token. We display them per 1M tokens. */
 export function pricePerMillion(perToken: number | null | undefined): string {
   if (perToken === null || perToken === undefined) return '—'
-  if (perToken < 0) return 'variabel'
-  if (perToken === 0) return 'kostenlos'
+  if (perToken < 0) return 'variable'
+  if (perToken === 0) return 'free'
   const value = perToken * 1_000_000
   if (value < 0.01) return `$${value.toFixed(4)}`
   if (value < 10) return `$${value.toFixed(3)}`
@@ -22,7 +22,7 @@ export function formatContext(tokens: number | null | undefined): string {
 
 export function formatTokens(tokens: number | null | undefined): string {
   if (tokens === null || tokens === undefined) return '—'
-  return tokens.toLocaleString('de-DE')
+  return tokens.toLocaleString('en-US')
 }
 
 export function formatCost(usd: number | null | undefined): string {
@@ -44,7 +44,7 @@ export function formatDuration(ms: number | null | undefined): string {
 
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('de-DE', {
+  return new Date(iso).toLocaleString('en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -57,12 +57,12 @@ export function formatRelative(iso: string | null | undefined): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
   const minutes = Math.round(diff / 60_000)
-  if (minutes < 1) return 'gerade eben'
-  if (minutes < 60) return `vor ${minutes} Min.`
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min ago`
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `vor ${hours} Std.`
+  if (hours < 24) return `${hours} h ago`
   const days = Math.round(hours / 24)
-  return `vor ${days} Tg.`
+  return `${days} d ago`
 }
 
 export function providerLabel(provider: string): string {

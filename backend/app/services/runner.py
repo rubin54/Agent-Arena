@@ -13,12 +13,12 @@ from ..config import get_settings
 from ..db import SessionLocal
 from ..models import ModelCatalogEntry, Run, RunItem
 from ..openrouter import OpenRouterClient, OpenRouterError
-from . import settings_store, templating
+from . import agent, settings_store, templating
 
 log = logging.getLogger("arena.runner")
 
-# Nur Parameter, die wir bewusst durchreichen. Alles andere im Task-`params`-Objekt
-# landet unverändert im Payload (z. B. `reasoning`, `provider`, `transforms`).
+# Keys a task may never override. Everything else in the task's `params` object
+# is passed through verbatim (e.g. `reasoning`, `provider`, `transforms`).
 _RESERVED_PARAM_KEYS = {"model", "messages", "stream"}
 
 _running: dict[uuid.UUID, asyncio.Task[None]] = {}
@@ -30,7 +30,7 @@ def is_running(run_id: uuid.UUID) -> bool:
 
 
 def start_run(run_id: uuid.UUID) -> None:
-    """Run im Hintergrund starten. Der HTTP-Request kehrt sofort zurück."""
+    """Start a run in the background. The HTTP request returns immediately."""
     if is_running(run_id):
         return
     task = asyncio.create_task(_execute_run(run_id), name=f"run-{run_id}")
@@ -46,7 +46,7 @@ def cancel_run(run_id: uuid.UUID) -> bool:
     return False
 
 
-# --------------------------------------------------------------------------- Ausführung
+# --------------------------------------------------------------------------- Execution
 
 
 async def _execute_run(run_id: uuid.UUID) -> None:
@@ -67,7 +67,13 @@ async def _execute_run(run_id: uuid.UUID) -> None:
             snapshot = dict(run.task_snapshot or {})
             values = dict(run.variable_values or {})
 
-        semaphore = asyncio.Semaphore(max(1, settings.run_concurrency))
+        # Agent runs spin up a container each, so they run less broadly in parallel.
+        limit = (
+            settings.agent_concurrency
+            if snapshot.get("kind") == "agent"
+            else settings.run_concurrency
+        )
+        semaphore = asyncio.Semaphore(max(1, limit))
         await asyncio.gather(
             *(_execute_item(item_id, snapshot, values, semaphore) for item_id in item_ids)
         )
@@ -75,8 +81,8 @@ async def _execute_run(run_id: uuid.UUID) -> None:
     except asyncio.CancelledError:
         await _mark_cancelled(run_id)
         raise
-    except Exception as exc:  # pragma: no cover - Sicherheitsnetz
-        log.exception("Run %s abgebrochen", run_id)
+    except Exception as exc:  # pragma: no cover - safety net
+        log.exception("Run %s aborted", run_id)
         await _fail_run(run_id, str(exc))
 
 
@@ -99,32 +105,126 @@ async def _execute_item(
             catalog_entry = await session.get(ModelCatalogEntry, item.model_id)
             pricing = _pricing_from_entry(catalog_entry)
             messages = _build_messages(snapshot, values)
-            payload = _build_payload(snapshot, item.model_id, messages)
 
             started = time.perf_counter()
             try:
-                response = await client.chat_completion(payload)
-            except OpenRouterError as exc:
-                item.status = "failed"
-                item.error = exc.message
-                item.raw_response = exc.payload if isinstance(exc.payload, dict) else None
-                item.latency_ms = int((time.perf_counter() - started) * 1000)
-                item.finished_at = datetime.now(timezone.utc)
-                item.messages = messages
-                await session.commit()
-                return
-            except Exception as exc:  # pragma: no cover
+                if snapshot.get("kind") == "agent":
+                    await _execute_agent(
+                        item, client, snapshot, messages, catalog_entry, pricing, started, session
+                    )
+                else:
+                    await _execute_one_shot(item, client, snapshot, messages, pricing, started)
+            except Exception as exc:  # pragma: no cover -- per-model safety net
+                log.exception("Item %s failed", item_id)
                 item.status = "failed"
                 item.error = f"{type(exc).__name__}: {exc}"
                 item.latency_ms = int((time.perf_counter() - started) * 1000)
                 item.finished_at = datetime.now(timezone.utc)
                 item.messages = messages
-                await session.commit()
-                return
-
-            latency_ms = int((time.perf_counter() - started) * 1000)
-            _apply_response(item, response, messages, pricing, latency_ms)
             await session.commit()
+
+
+async def _execute_one_shot(
+    item: RunItem,
+    client: OpenRouterClient,
+    snapshot: dict[str, Any],
+    messages: list[dict[str, Any]],
+    pricing: dict[str, float | None],
+    started: float,
+) -> None:
+    payload = _build_payload(snapshot, item.model_id, messages)
+    try:
+        response = await client.chat_completion(payload)
+    except OpenRouterError as exc:
+        item.status = "failed"
+        item.error = exc.message
+        item.raw_response = exc.payload if isinstance(exc.payload, dict) else None
+        item.latency_ms = int((time.perf_counter() - started) * 1000)
+        item.finished_at = datetime.now(timezone.utc)
+        item.messages = messages
+        return
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    _apply_response(item, response, messages, pricing, latency_ms)
+
+
+async def _execute_agent(
+    item: RunItem,
+    client: OpenRouterClient,
+    snapshot: dict[str, Any],
+    messages: list[dict[str, Any]],
+    catalog_entry: ModelCatalogEntry | None,
+    pricing: dict[str, float | None],
+    started: float,
+    session: AsyncSession,
+) -> None:
+    # An agent run is pointless without tool support -- fail fast with a clear message
+    # instead of letting the model hallucinate an answer it never worked for.
+    if catalog_entry is not None and not _supports_tools(catalog_entry):
+        item.status = "failed"
+        item.error = (
+            f"{item.model_id} does not support tool calling and cannot run agent tasks. "
+            "Filter the catalog by the \"Tool Calling\" capability."
+        )
+        item.latency_ms = int((time.perf_counter() - started) * 1000)
+        item.finished_at = datetime.now(timezone.utc)
+        item.messages = messages
+        return
+
+    params = {
+        k: v
+        for k, v in (snapshot.get("params") or {}).items()
+        if k not in _RESERVED_PARAM_KEYS and v is not None and v != ""
+    }
+
+    async def publish_steps(steps: list[dict[str, Any]]) -> None:
+        item.steps = list(steps)
+        await session.commit()
+
+    result = await agent.run_agent(
+        client=client,
+        model_id=item.model_id,
+        base_messages=messages,
+        params=params,
+        agent_config=snapshot.get("agent_config") or {},
+        on_step=publish_steps,
+    )
+
+    item.messages = result.messages
+    item.steps = result.steps
+    item.output_text = result.output_text or None
+    item.finish_reason = result.finish_reason
+    item.prompt_tokens = result.prompt_tokens or None
+    item.completion_tokens = result.completion_tokens or None
+    item.reasoning_tokens = result.reasoning_tokens or None
+    item.total_tokens = result.total_tokens or _sum_or_none(
+        result.prompt_tokens, result.completion_tokens
+    )
+    item.cost_usd = (
+        result.cost_usd
+        if result.cost_usd is not None
+        else _estimate_cost(result.prompt_tokens, result.completion_tokens, pricing)
+    )
+    item.latency_ms = int((time.perf_counter() - started) * 1000)
+    item.raw_response = {
+        "turns": result.turns,
+        "workspace": result.workspace,
+        "finish_reason": result.finish_reason,
+    }
+    item.finished_at = datetime.now(timezone.utc)
+
+    if result.error:
+        item.status = "failed"
+        item.error = result.error
+    elif not item.output_text:
+        item.status = "failed"
+        item.error = "The agent did not produce a final answer."
+    else:
+        item.status = "completed"
+
+
+def _supports_tools(entry: ModelCatalogEntry) -> bool:
+    return "tools" in (entry.supported_parameters or [])
 
 
 def _apply_response(
@@ -155,7 +255,7 @@ def _apply_response(
     item.reasoning_tokens = reasoning_tokens
     item.total_tokens = total_tokens or _sum_or_none(prompt_tokens, completion_tokens)
 
-    # OpenRouter liefert bei `usage: {include: true}` die echten Kosten mit.
+    # With `usage: {include: true}` OpenRouter reports what was actually billed.
     cost = usage.get("cost")
     item.cost_usd = (
         float(cost)
@@ -174,7 +274,7 @@ def _apply_response(
     ]
     item.status = "completed" if item.output_text else "failed"
     if item.status == "failed" and not item.error:
-        item.error = "Modell hat keinen Text zurückgegeben."
+        item.error = "The model returned no text."
     item.finished_at = datetime.now(timezone.utc)
 
 
@@ -202,7 +302,7 @@ def _build_payload(
         "model": model_id,
         "messages": messages,
         "stream": False,
-        # Liefert `usage.cost` -- die tatsächlich abgerechneten Kosten.
+        # Yields `usage.cost` -- the amount actually billed.
         "usage": {"include": True},
         **params,
     }
@@ -226,7 +326,7 @@ def _content_to_text(content: Any) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        # Multimodale Antworten kommen als Liste von Parts.
+        # Multimodal responses arrive as a list of parts.
         parts: list[str] = []
         for part in content:
             if isinstance(part, dict):
@@ -238,7 +338,7 @@ def _content_to_text(content: Any) -> str:
     return json.dumps(content, ensure_ascii=False)
 
 
-# --------------------------------------------------------------------------- Kosten
+# --------------------------------------------------------------------------- Cost
 
 
 def _pricing_from_entry(entry: ModelCatalogEntry | None) -> dict[str, float | None]:
@@ -251,7 +351,7 @@ def _estimate_cost(
     prompt_tokens: int | None, completion_tokens: int | None, pricing: dict[str, float | None]
 ) -> float | None:
     p_price, c_price = pricing.get("prompt"), pricing.get("completion")
-    # -1 bedeutet bei OpenRouter "variabel" -- daraus lässt sich nichts rechnen.
+    # In OpenRouter -1 means "variable", which cannot be turned into a number.
     if p_price is None or c_price is None or p_price < 0 or c_price < 0:
         return None
     if prompt_tokens is None and completion_tokens is None:
@@ -272,7 +372,7 @@ def _sum_or_none(*values: int | None) -> int | None:
     return sum(present) if present else None
 
 
-# --------------------------------------------------------------------------- Abschluss
+# --------------------------------------------------------------------------- Finalisation
 
 
 async def _finalize(run_id: uuid.UUID) -> None:
@@ -283,7 +383,7 @@ async def _finalize(run_id: uuid.UUID) -> None:
         statuses = await _item_statuses(session, run_id)
         if statuses and all(s == "failed" for s in statuses):
             run.status = "failed"
-            run.error = "Alle Modelle sind fehlgeschlagen."
+            run.error = "All models failed."
         else:
             run.status = "completed"
         run.finished_at = datetime.now(timezone.utc)
@@ -302,7 +402,7 @@ async def _fail_run(run_id: uuid.UUID, error: str) -> None:
 
 
 async def _mark_cancelled(run_id: uuid.UUID) -> None:
-    # Bewusst ohne await auf den (gerade gecancelten) Task: eigene Session, eigener Shield.
+    # Deliberately not awaiting the just-cancelled task: own session, own shield.
     async def _do() -> None:
         async with SessionLocal() as session:
             run = await session.get(Run, run_id)
@@ -328,7 +428,7 @@ async def _item_statuses(session: AsyncSession, run_id: uuid.UUID) -> list[str]:
 def build_client_preview(
     snapshot: dict[str, Any], values: dict[str, Any]
 ) -> dict[str, Any]:
-    """Vorschau der tatsächlich gesendeten Nachrichten -- fürs UI."""
+    """Preview of the messages that would actually be sent -- for the UI."""
     return {"messages": _build_messages(snapshot, values)}
 
 

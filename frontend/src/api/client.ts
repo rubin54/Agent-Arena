@@ -16,7 +16,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
     })
   } catch {
-    throw new ApiError('Backend nicht erreichbar. Läuft uvicorn auf Port 8000?', 0)
+    throw new ApiError('Backend unreachable. Is uvicorn running on port 8000?', 0)
   }
 
   if (!response.ok) {
@@ -26,7 +26,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       if (typeof body?.detail === 'string') detail = body.detail
       else if (Array.isArray(body?.detail)) detail = body.detail.map((d: any) => d.msg).join(', ')
     } catch {
-      /* Body war kein JSON -- Statuscode reicht. */
+      /* Body was not JSON -- the status code is enough. */
     }
     throw new ApiError(detail, response.status)
   }

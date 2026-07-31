@@ -12,7 +12,7 @@ class ORMBase(BaseModel):
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
-# --------------------------------------------------------------------------- Katalog
+# --------------------------------------------------------------------------- Catalog
 
 
 class ModelOut(ORMBase):
@@ -112,7 +112,7 @@ class RunCreate(BaseModel):
     model_ids: list[str] = Field(min_length=1)
     variable_values: dict[str, Any] = {}
     label: str = ""
-    # Überschreibt die Task-Parameter für genau diesen Run.
+    # Overrides the task parameters for this run only.
     params_override: dict[str, Any] | None = None
 
 
@@ -134,11 +134,12 @@ class RunItemOut(ORMBase):
     latency_ms: int | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    # Step trace for agent runs; empty for one-shot runs.
+    steps: list[dict[str, Any]] = []
 
 
 class RunItemDetail(RunItemOut):
     messages: list[dict[str, Any]] = []
-    steps: list[dict[str, Any]] = []
     raw_response: dict[str, Any] | None = None
 
 
@@ -180,7 +181,7 @@ class SettingsOut(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
-    # None = unverändert lassen, "" = Override löschen
+    # None = leave unchanged, "" = delete the override
     openrouter_api_key: str | None = None
 
 

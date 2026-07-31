@@ -41,7 +41,7 @@ async def update_settings(
         if value:
             await settings_store.set_setting(session, settings_store.API_KEY_SETTING, value)
         else:
-            # Leerer String löscht den Override -> .env greift wieder.
+            # An empty string clears the override, so the .env takes over again.
             await settings_store.delete_setting(session, settings_store.API_KEY_SETTING)
     return await _current(session)
 
@@ -52,7 +52,7 @@ async def check_connection(session: AsyncSession = Depends(get_session)) -> Conn
     if not key:
         return ConnectionCheck(
             ok=False,
-            message="Kein API-Key gesetzt (weder in backend/.env noch als Override).",
+            message="No API key configured (neither in backend/.env nor as an override).",
         )
 
     client = await settings_store.build_client(session)
@@ -68,12 +68,12 @@ async def check_connection(session: AsyncSession = Depends(get_session)) -> Conn
     except OpenRouterError as exc:
         return ConnectionCheck(
             ok=False,
-            message=f"Verbindung fehlgeschlagen: {exc.message}",
+            message=f"Connection failed: {exc.message}",
             detail={"status": exc.status, "source": source},
         )
 
     return ConnectionCheck(
         ok=True,
-        message=f"Verbindung ok (Key aus '{source}').",
+        message=f"Connection ok (key from '{source}').",
         detail={"model": response.get("model"), "id": response.get("id")},
     )

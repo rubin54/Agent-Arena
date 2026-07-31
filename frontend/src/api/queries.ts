@@ -7,8 +7,10 @@ import type {
   PromptPreview,
   RunDetail,
   RunSummary,
+  SandboxStatus,
   Task,
   TaskInput,
+  ToolInfo,
 } from './types'
 
 export const keys = {
@@ -18,9 +20,11 @@ export const keys = {
   runs: ['runs'] as const,
   run: (id: string) => ['runs', id] as const,
   settings: ['settings'] as const,
+  agentTools: ['agent', 'tools'] as const,
+  sandbox: ['agent', 'sandbox'] as const,
 }
 
-// --------------------------------------------------------------------- Modelle
+// --------------------------------------------------------------------- Models
 
 export function useModels() {
   return useQuery({
@@ -108,7 +112,7 @@ export function useRuns(taskId?: string) {
   return useQuery({
     queryKey: [...keys.runs, taskId ?? 'all'],
     queryFn: () => api.get<RunSummary[]>(`/api/runs${query}`),
-    // Laufende Runs sollen in der Liste sichtbar weiterlaufen.
+    // Active runs should keep updating in the list.
     refetchInterval: (q) =>
       (q.state.data ?? []).some((r) => r.status === 'running' || r.status === 'pending')
         ? 2000
@@ -121,7 +125,7 @@ export function useRun(id: string | undefined) {
     queryKey: keys.run(id ?? ''),
     queryFn: () => api.get<RunDetail>(`/api/runs/${id}`),
     enabled: Boolean(id),
-    // Solange der Run läuft, pollen wir -- so füllen sich die Karten nach und nach.
+    // Poll while the run is active so the cards fill in one by one.
     refetchInterval: (q) => {
       const status = q.state.data?.status
       return status === 'running' || status === 'pending' ? 1200 : false
@@ -173,6 +177,32 @@ export function useDeleteRun() {
   return useMutation({
     mutationFn: (id: string) => api.del<void>(`/api/runs/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.runs }),
+  })
+}
+
+// --------------------------------------------------------------------- Agent
+
+export function useAgentTools() {
+  return useQuery({
+    queryKey: keys.agentTools,
+    queryFn: () => api.get<ToolInfo[]>('/api/agent/tools'),
+    staleTime: Infinity,
+  })
+}
+
+export function useSandboxStatus() {
+  return useQuery({
+    queryKey: keys.sandbox,
+    queryFn: () => api.get<SandboxStatus>('/api/agent/sandbox'),
+    staleTime: 30_000,
+  })
+}
+
+export function useBuildSandbox() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<SandboxStatus>('/api/agent/sandbox/build'),
+    onSuccess: (data) => qc.setQueryData(keys.sandbox, data),
   })
 }
 

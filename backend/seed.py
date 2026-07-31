@@ -1,8 +1,8 @@
-"""Legt ein paar Beispiel-Aufgaben an, die die verschiedenen Render-Modi zeigen.
+"""Create a few example tasks that showcase the different render modes.
 
     python seed.py
 
-Bereits vorhandene Aufgaben mit gleichem Namen werden übersprungen.
+Tasks whose name already exists are skipped.
 """
 
 import asyncio
@@ -14,64 +14,79 @@ from app.models import Task
 
 EXAMPLES: list[dict] = [
     {
-        "name": "Erklärung schreiben (Markdown)",
-        "description": "Klassischer One-Shot-Prompt, Ergebnis wird als Markdown gerendert.",
-        "system_prompt": "Du bist ein präziser technischer Autor. Antworte auf Deutsch.",
+        "name": "Write an explanation (Markdown)",
+        "description": "Classic one-shot prompt; the result is rendered as Markdown.",
+        "system_prompt": "You are a precise technical writer.",
         "prompt_template": (
-            "Erkläre {{thema}} für {{zielgruppe}}.\n\n"
-            "Struktur:\n"
-            "1. Kernidee in zwei Sätzen\n"
-            "2. Wie es funktioniert (Aufzählung)\n"
-            "3. Ein konkretes Beispiel\n"
-            "4. Häufigster Denkfehler\n\n"
-            "Maximal 300 Wörter."
+            "Explain {{topic}} to {{audience}}.\n\n"
+            "Structure:\n"
+            "1. Core idea in two sentences\n"
+            "2. How it works (bullet points)\n"
+            "3. One concrete example\n"
+            "4. The most common misconception\n\n"
+            "300 words maximum."
         ),
         "variables": [
-            {"name": "thema", "description": "Was erklärt werden soll", "default": "Vektor-Embeddings"},
-            {"name": "zielgruppe", "description": "Wissensstand der Leser", "default": "Backend-Entwickler ohne ML-Vorwissen"},
+            {"name": "topic", "description": "What to explain", "default": "vector embeddings"},
+            {
+                "name": "audience",
+                "description": "Prior knowledge of the readers",
+                "default": "backend developers with no ML background",
+            },
         ],
         "render_mode": "markdown",
         "params": {"temperature": 0.4, "max_tokens": 900},
     },
     {
-        "name": "Landing-Page bauen (HTML)",
-        "description": "Prüft Design- und Frontend-Fähigkeiten. Ergebnis läuft in einem Sandbox-iframe.",
+        "name": "Build a landing page (HTML)",
+        "description": "Probes design and frontend skills. The result runs in a sandboxed iframe.",
         "system_prompt": (
-            "Du lieferst genau eine vollständige HTML-Datei zurück – kein Fließtext, keine Erklärung. "
-            "Alles Nötige (CSS, ggf. JS) steht inline im Dokument. Keine externen Requests."
+            "You return exactly one complete HTML file -- no prose, no explanation. "
+            "Everything needed (CSS, and JS if any) is inline in the document. No external requests."
         ),
         "prompt_template": (
-            "Baue eine Landing-Page für {{produkt}}.\n\n"
-            "Zielgruppe: {{zielgruppe}}\n"
-            "Tonalität: {{tonalitaet}}\n\n"
-            "Pflicht: Hero mit klarem Nutzenversprechen, drei Feature-Blöcke, "
-            "Preis-Sektion, ein Call-to-Action. Responsive, dunkles Theme, "
-            "moderne Typografie."
+            "Build a landing page for {{product}}.\n\n"
+            "Audience: {{audience}}\n"
+            "Tone: {{tone}}\n\n"
+            "Required: a hero with a clear value proposition, three feature blocks, "
+            "a pricing section and one call to action. Responsive, dark theme, "
+            "modern typography."
         ),
         "variables": [
-            {"name": "produkt", "description": "Was beworben wird", "default": "ein CLI-Tool zum Aufräumen von Docker-Images"},
-            {"name": "zielgruppe", "description": "Wer angesprochen wird", "default": "DevOps-Teams in kleinen Firmen"},
-            {"name": "tonalitaet", "description": "Sprachlicher Stil", "default": "sachlich, technisch, ohne Marketing-Floskeln"},
+            {
+                "name": "product",
+                "description": "What is being advertised",
+                "default": "a CLI tool that cleans up stale Docker images",
+            },
+            {
+                "name": "audience",
+                "description": "Who is being addressed",
+                "default": "DevOps teams at small companies",
+            },
+            {
+                "name": "tone",
+                "description": "Style of the copy",
+                "default": "factual, technical, no marketing fluff",
+            },
         ],
         "render_mode": "html",
         "params": {"temperature": 0.8, "max_tokens": 8000},
     },
     {
-        "name": "Daten extrahieren (JSON)",
-        "description": "Structured Output – testet, wie zuverlässig ein Modell ein Schema einhält.",
-        "system_prompt": "Du extrahierst Daten und antwortest ausschließlich mit JSON.",
+        "name": "Extract data (JSON)",
+        "description": "Structured output -- tests how reliably a model sticks to a schema.",
+        "system_prompt": "You extract data and answer with JSON only.",
         "prompt_template": (
-            "Extrahiere die strukturierten Daten aus folgendem Text:\n\n"
-            "---\n{{text}}\n---"
+            "Extract the structured data from the following text:\n\n---\n{{text}}\n---"
         ),
         "variables": [
             {
                 "name": "text",
-                "description": "Rohtext, aus dem extrahiert wird",
+                "description": "Raw text to extract from",
                 "default": (
-                    "Rechnung 2024-0815 vom 12.03.2024. Kunde: Meier GmbH, Hamburg. "
-                    "Positionen: 3x Serverwartung à 450,00 EUR, 1x Notfall-Einsatz 890,50 EUR. "
-                    "Zahlbar bis 26.03.2024."
+                    "Invoice 2024-0815 dated 2024-03-12. Customer: Meier GmbH, Hamburg. "
+                    "Line items: 3x server maintenance at 450.00 EUR, 1x emergency callout 890.50 EUR. "
+                    "Payable by 2024-03-26."
                 ),
             }
         ],
@@ -79,56 +94,111 @@ EXAMPLES: list[dict] = [
         "json_schema": {
             "type": "object",
             "properties": {
-                "rechnungsnummer": {"type": "string"},
-                "datum": {"type": "string"},
-                "kunde": {"type": "string"},
-                "positionen": {
+                "invoice_number": {"type": "string"},
+                "date": {"type": "string"},
+                "customer": {"type": "string"},
+                "line_items": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "bezeichnung": {"type": "string"},
-                            "menge": {"type": "number"},
-                            "einzelpreis_eur": {"type": "number"},
+                            "description": {"type": "string"},
+                            "quantity": {"type": "number"},
+                            "unit_price_eur": {"type": "number"},
                         },
-                        "required": ["bezeichnung", "menge", "einzelpreis_eur"],
+                        "required": ["description", "quantity", "unit_price_eur"],
                         "additionalProperties": False,
                     },
                 },
-                "gesamtbetrag_eur": {"type": "number"},
-                "faellig_am": {"type": "string"},
+                "total_eur": {"type": "number"},
+                "due_date": {"type": "string"},
             },
             "required": [
-                "rechnungsnummer",
-                "datum",
-                "kunde",
-                "positionen",
-                "gesamtbetrag_eur",
-                "faellig_am",
+                "invoice_number",
+                "date",
+                "customer",
+                "line_items",
+                "total_eur",
+                "due_date",
             ],
             "additionalProperties": False,
         },
         "params": {"temperature": 0, "max_tokens": 1500},
     },
     {
-        "name": "Algorithmus implementieren (Code)",
-        "description": "Vergleicht Code-Qualität bei identischer Aufgabenstellung.",
-        "system_prompt": "Antworte mit genau einem Code-Block, ohne Vor- und Nachrede.",
+        "name": "Implement an algorithm (Code)",
+        "description": "Compares code quality on an identical brief.",
+        "system_prompt": "Answer with exactly one code block, no preamble and no epilogue.",
         "prompt_template": (
-            "Implementiere in {{sprache}}: {{aufgabe}}\n\n"
-            "Anforderungen: typisiert, Randfälle abgedeckt, kurze Docstrings, keine externen Abhängigkeiten."
+            "Implement in {{language}}: {{task}}\n\n"
+            "Requirements: typed, edge cases covered, short docstrings, no external dependencies."
         ),
         "variables": [
-            {"name": "sprache", "description": "Programmiersprache", "default": "Python"},
+            {"name": "language", "description": "Programming language", "default": "Python"},
             {
-                "name": "aufgabe",
-                "description": "Was implementiert werden soll",
-                "default": "ein LRU-Cache mit O(1) get und put",
+                "name": "task",
+                "description": "What to implement",
+                "default": "an LRU cache with O(1) get and put",
             },
         ],
         "render_mode": "code",
         "code_language": "python",
         "params": {"temperature": 0.2, "max_tokens": 2000},
+    },
+    {
+        "name": "Agent: find and fix a bug",
+        "description": "Agent task -- the agent has to run the tests, find the bug and fix it.",
+        "kind": "agent",
+        "system_prompt": "You are a careful software engineer.",
+        "prompt_template": (
+            "The workspace contains `stats.py` and `test_stats.py`. The tests fail.\n\n"
+            "Find the cause, fix it in `stats.py` and prove with a test run that every "
+            "test passes. Do not modify the tests."
+        ),
+        "variables": [],
+        "render_mode": "markdown",
+        "params": {"temperature": 0.3},
+        "agent_config": {
+            "max_steps": 15,
+            "network": False,
+            "command_timeout_s": 60,
+            "memory_mb": 1024,
+            "cpus": 2,
+            "tools": ["bash", "read_file", "write_file", "list_files"],
+            "setup_files": [
+                {
+                    "path": "stats.py",
+                    "content": (
+                        "def median(values):\n"
+                        '    """Median of a list of numbers."""\n'
+                        "    if not values:\n"
+                        "        raise ValueError('empty list')\n"
+                        "    ordered = sorted(values)\n"
+                        "    middle = len(ordered) // 2\n"
+                        "    # Bug: for an even count the mean of the two middle\n"
+                        "    # values must be returned.\n"
+                        "    return ordered[middle]\n"
+                    ),
+                },
+                {
+                    "path": "test_stats.py",
+                    "content": (
+                        "from stats import median\n\n\n"
+                        "def test_odd():\n"
+                        "    assert median([3, 1, 2]) == 2\n\n\n"
+                        "def test_even():\n"
+                        "    assert median([4, 1, 3, 2]) == 2.5\n\n\n"
+                        "def test_single_value():\n"
+                        "    assert median([7]) == 7\n\n\n"
+                        "if __name__ == '__main__':\n"
+                        "    test_odd()\n"
+                        "    test_even()\n"
+                        "    test_single_value()\n"
+                        "    print('all tests pass')\n"
+                    ),
+                },
+            ],
+        },
     },
 ]
 
@@ -140,13 +210,13 @@ async def main() -> None:
         added = 0
         for example in EXAMPLES:
             if example["name"] in existing:
-                print(f"  übersprungen (existiert): {example['name']}")
+                print(f"  skipped (already exists): {example['name']}")
                 continue
             session.add(Task(**example))
             added += 1
-            print(f"  angelegt: {example['name']}")
+            print(f"  created: {example['name']}")
         await session.commit()
-    print(f"\n{added} Aufgabe(n) angelegt.")
+    print(f"\n{added} task(s) created.")
 
 
 if __name__ == "__main__":

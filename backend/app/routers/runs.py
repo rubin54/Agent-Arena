@@ -37,7 +37,7 @@ def _summarize(run: Run, task_name: str) -> dict:
 def _task_name(run: Run) -> str:
     if run.task is not None:
         return run.task.name
-    return (run.task_snapshot or {}).get("name", "") or "(gelöschte Task)"
+    return (run.task_snapshot or {}).get("name", "") or "(deleted task)"
 
 
 @router.get("", response_model=list[RunSummary])
@@ -65,17 +65,11 @@ async def list_runs(
 async def create_run(payload: RunCreate, session: AsyncSession = Depends(get_session)) -> RunDetail:
     task = await session.get(Task, payload.task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail="Task nicht gefunden")
-
-    if task.kind == "agent":
-        raise HTTPException(
-            status_code=400,
-            detail="Agent-Tasks werden vom Runner noch nicht ausgeführt (Harness folgt).",
-        )
+        raise HTTPException(status_code=404, detail="Task not found")
 
     model_ids = list(dict.fromkeys(payload.model_ids))  # Duplikate raus, Reihenfolge bleibt
     if not model_ids:
-        raise HTTPException(status_code=400, detail="Mindestens ein Modell auswählen")
+        raise HTTPException(status_code=400, detail="Select at least one model")
 
     snapshot = {
         "name": task.name,
@@ -104,8 +98,8 @@ async def create_run(payload: RunCreate, session: AsyncSession = Depends(get_ses
     session.add(run)
     await session.flush()
 
-    # Anzeigenamen aus dem Katalog ziehen, damit die Historie auch lesbar bleibt,
-    # wenn ein Modell später vom Katalog verschwindet.
+    # Pull display names from the catalog so the history stays readable even if a
+    # model disappears from the catalog later on.
     catalog_rows = await session.execute(
         select(ModelCatalogEntry.id, ModelCatalogEntry.name).where(
             ModelCatalogEntry.id.in_(model_ids)
@@ -143,7 +137,7 @@ async def get_run_item(
 ) -> RunItemDetail:
     item = await session.get(RunItem, item_id)
     if item is None or item.run_id != run_id:
-        raise HTTPException(status_code=404, detail="Run-Item nicht gefunden")
+        raise HTTPException(status_code=404, detail="Run item not found")
     return RunItemDetail.model_validate(item)
 
 
@@ -151,13 +145,13 @@ async def get_run_item(
 async def cancel_run(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> RunDetail:
     run = await session.get(Run, run_id)
     if run is None:
-        raise HTTPException(status_code=404, detail="Run nicht gefunden")
+        raise HTTPException(status_code=404, detail="Run not found")
     if run.status not in ("pending", "running"):
-        raise HTTPException(status_code=400, detail=f"Run ist bereits '{run.status}'")
+        raise HTTPException(status_code=400, detail=f"Run is already '{run.status}'")
 
     runner.cancel_run(run_id)
 
-    # Unabhängig davon, ob der Task noch lebt, den DB-Zustand konsistent hinterlassen.
+    # Leave the DB consistent whether or not the asyncio task is still alive.
     result = await session.execute(select(RunItem).where(RunItem.run_id == run_id))
     for item in result.scalars().all():
         if item.status in ("pending", "running"):
@@ -172,10 +166,10 @@ async def cancel_run(run_id: uuid.UUID, session: AsyncSession = Depends(get_sess
 
 @router.post("/{run_id}/rerun", response_model=RunDetail, status_code=201)
 async def rerun(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> RunDetail:
-    """Gleiche Task, gleiche Modelle, gleiche Variablenwerte -- neuer Run."""
+    """Same task, same models, same variable values -- a fresh run."""
     old = await session.get(Run, run_id, options=[selectinload(Run.items)])
     if old is None:
-        raise HTTPException(status_code=404, detail="Run nicht gefunden")
+        raise HTTPException(status_code=404, detail="Run not found")
 
     new_run = Run(
         task_id=old.task_id,
@@ -207,7 +201,7 @@ async def rerun(run_id: uuid.UUID, session: AsyncSession = Depends(get_session))
 async def delete_run(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> None:
     run = await session.get(Run, run_id)
     if run is None:
-        raise HTTPException(status_code=404, detail="Run nicht gefunden")
+        raise HTTPException(status_code=404, detail="Run not found")
     runner.cancel_run(run_id)
     await session.delete(run)
     await session.commit()
@@ -221,7 +215,7 @@ async def _load_detail(session: AsyncSession, run_id: uuid.UUID) -> RunDetail:
     )
     run = result.scalar_one_or_none()
     if run is None:
-        raise HTTPException(status_code=404, detail="Run nicht gefunden")
+        raise HTTPException(status_code=404, detail="Run not found")
 
     return RunDetail(
         **_summarize(run, _task_name(run)),

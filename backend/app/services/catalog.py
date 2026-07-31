@@ -54,12 +54,12 @@ def _map_entry(item: dict[str, Any]) -> ModelCatalogEntry:
 
 
 async def refresh_catalog(session: AsyncSession) -> int:
-    """Katalog von OpenRouter neu ziehen und den lokalen Cache ersetzen."""
+    """Re-fetch the catalog from OpenRouter and replace the local cache."""
     client = await settings_store.build_client(session)
     items = await client.list_models()
 
     entries = [_map_entry(item) for item in items if item.get("id")]
-    # Duplikate defensiv rausfiltern -- doppelte PKs würden den Insert sprengen.
+    # Drop duplicates defensively -- repeated primary keys would break the insert.
     unique: dict[str, ModelCatalogEntry] = {e.id: e for e in entries}
 
     await session.execute(delete(ModelCatalogEntry))

@@ -26,10 +26,10 @@ def new_uuid() -> uuid.UUID:
 
 
 class ModelCatalogEntry(Base):
-    """Ein Modell aus dem OpenRouter-Katalog, lokal gecacht.
+    """A model from the OpenRouter catalog, cached locally.
 
-    Die für Filter/Sortierung relevanten Felder sind ausgepackt, das komplette
-    API-Objekt liegt zusätzlich in `raw`.
+    Fields needed for filtering and sorting are unpacked into columns; the full
+    API object is kept in `raw`.
     """
 
     __tablename__ = "model_catalog"
@@ -45,7 +45,7 @@ class ModelCatalogEntry(Base):
     max_completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_moderated: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
-    # USD pro Token (so wie OpenRouter es liefert). -1 == variabel/provider-abhängig.
+    # USD per token, exactly as OpenRouter reports it. -1 == variable / provider-dependent.
     price_prompt: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_completion: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_request: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -67,14 +67,14 @@ class ModelCatalogEntry(Base):
 
 
 class Task(Base):
-    """Eine wiederverwendbare Aufgabe, die gegen beliebige Modelle laufen kann."""
+    """A reusable task that can be run against any set of models."""
 
     __tablename__ = "tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=new_uuid)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text, default="")
-    # 'one_shot' heute, 'agent' sobald das Harness dazukommt.
+    # 'one_shot' for a single prompt, 'agent' for the tool-calling harness.
     kind: Mapped[str] = mapped_column(String(32), default="one_shot")
 
     system_prompt: Mapped[str] = mapped_column(Text, default="")
@@ -87,12 +87,12 @@ class Task(Base):
     code_language: Mapped[str | None] = mapped_column(String(32), nullable=True)
     json_schema: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    # Wird in den chat/completions-Payload gemerged (temperature, max_tokens, reasoning, ...)
+    # Merged into the chat/completions payload (temperature, max_tokens, reasoning, ...)
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-    # Platzhalter für das Agent-Harness (max_steps, tools, ...)
+    # Agent harness settings (max_steps, tools, network, setup_files, ...)
     agent_config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
-    # Zuletzt für diese Task benutzte Modell-Auswahl, als Vorbelegung im UI.
+    # Model selection last used for this task; pre-fills the launcher in the UI.
     default_model_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -104,7 +104,7 @@ class Task(Base):
 
 
 class Run(Base):
-    """Eine Ausführung einer Task gegen N Modelle."""
+    """One execution of a task against N models."""
 
     __tablename__ = "runs"
 
@@ -113,7 +113,7 @@ class Run(Base):
         PgUUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
     label: Mapped[str] = mapped_column(String(255), default="")
-    # Kopie der Task zum Zeitpunkt des Runs -- spätere Task-Änderungen verfälschen die Historie nicht.
+    # Copy of the task as of this run -- later edits never distort past results.
     task_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     variable_values: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
@@ -132,7 +132,7 @@ class Run(Base):
 
 
 class RunItem(Base):
-    """Das Ergebnis eines einzelnen Modells innerhalb eines Runs."""
+    """The result of a single model within a run."""
 
     __tablename__ = "run_items"
 
@@ -152,7 +152,7 @@ class RunItem(Base):
     finish_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Vollständiger Nachrichtenverlauf (inkl. Tool-Calls, sobald das Agent-Harness läuft).
+    # Full message history, including tool calls for agent runs.
     messages: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     steps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     raw_response: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
@@ -172,7 +172,7 @@ class RunItem(Base):
 
 
 class AppSetting(Base):
-    """Key/Value-Overrides, die im UI gesetzt werden (z. B. der API-Key)."""
+    """Key/value overrides set from the UI (e.g. the API key)."""
 
     __tablename__ = "app_settings"
 

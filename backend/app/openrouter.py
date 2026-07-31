@@ -4,7 +4,7 @@ import httpx
 
 
 class OpenRouterError(Exception):
-    """Fehler beim Sprechen mit OpenRouter. `status` ist None bei Netzwerk-/Timeout-Fehlern."""
+    """Error talking to OpenRouter. `status` is None for network/timeout failures."""
 
     def __init__(self, message: str, status: int | None = None, payload: Any = None):
         super().__init__(message)
@@ -32,8 +32,8 @@ class OpenRouterClient:
     def _headers(self, *, require_key: bool = True) -> dict[str, str]:
         if require_key and not self.api_key:
             raise OpenRouterError(
-                "Kein OpenRouter-API-Key gesetzt. Trage ihn in backend/.env "
-                "als OPENROUTER_API_KEY ein oder hinterlege ihn unter Einstellungen."
+                "No OpenRouter API key configured. Set OPENROUTER_API_KEY in "
+                "backend/.env or provide it under Settings."
             )
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -45,17 +45,17 @@ class OpenRouterClient:
         return headers
 
     async def list_models(self) -> list[dict[str, Any]]:
-        """Kompletter Modell-Katalog. Funktioniert auch ohne API-Key."""
+        """The full model catalog. Works without an API key."""
         url = f"{self.base_url}/models"
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.get(url, headers=self._headers(require_key=False))
         except httpx.HTTPError as exc:
-            raise OpenRouterError(f"Modell-Katalog nicht erreichbar: {exc}") from exc
+            raise OpenRouterError(f"Model catalog unreachable: {exc}") from exc
 
         if resp.status_code >= 400:
             raise OpenRouterError(
-                f"Modell-Katalog konnte nicht geladen werden (HTTP {resp.status_code})",
+                f"Could not load the model catalog (HTTP {resp.status_code})",
                 status=resp.status_code,
                 payload=_safe_json(resp),
             )
@@ -68,9 +68,9 @@ class OpenRouterClient:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 resp = await client.post(url, headers=self._headers(), json=payload)
         except httpx.TimeoutException as exc:
-            raise OpenRouterError(f"Timeout nach {self.timeout:.0f}s") from exc
+            raise OpenRouterError(f"Timed out after {self.timeout:.0f}s") from exc
         except httpx.HTTPError as exc:
-            raise OpenRouterError(f"Netzwerkfehler: {exc}") from exc
+            raise OpenRouterError(f"Network error: {exc}") from exc
 
         body = _safe_json(resp)
         if resp.status_code >= 400:
@@ -80,12 +80,12 @@ class OpenRouterClient:
                 payload=body,
             )
         if not isinstance(body, dict):
-            raise OpenRouterError("Unerwartete Antwort von OpenRouter", payload=body)
+            raise OpenRouterError("Unexpected response from OpenRouter", payload=body)
 
-        # OpenRouter liefert Upstream-Fehler teilweise mit HTTP 200 im Body.
+        # OpenRouter sometimes reports upstream errors in the body with HTTP 200.
         if "error" in body and not body.get("choices"):
             raise OpenRouterError(
-                _extract_error_message(body) or "Unbekannter Fehler",
+                _extract_error_message(body) or "Unknown error",
                 status=body.get("error", {}).get("code"),
                 payload=body,
             )

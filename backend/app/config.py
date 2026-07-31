@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     request_timeout_s: float = 300.0
     catalog_ttl_minutes: int = 60
 
+    # Agent sandbox
+    docker_binary: str = "docker"
+    sandbox_image: str = "agent-arena-sandbox:latest"
+    sandbox_startup_timeout_s: float = 180.0
+    sandbox_build_timeout_s: float = 900.0
+    # Agent runs spin up a container each -- less parallel than one-shot runs.
+    agent_concurrency: int = 3
+
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     @property

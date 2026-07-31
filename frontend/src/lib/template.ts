@@ -2,7 +2,7 @@ import type { TaskVariable } from '../api/types'
 
 const VARIABLE_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g
 
-/** Spiegelt die Backend-Logik in `services/templating.py`. */
+/** Mirrors the backend logic in `services/templating.py`. */
 export function extractVariables(...texts: string[]): string[] {
   const seen: string[] = []
   for (const text of texts) {
@@ -19,7 +19,7 @@ export function renderTemplate(template: string, values: Record<string, string>)
   )
 }
 
-/** Erkannte Platzhalter mit den bereits gepflegten Metadaten zusammenführen. */
+/** Merge detected placeholders with the metadata already maintained. */
 export function syncVariables(detected: string[], existing: TaskVariable[]): TaskVariable[] {
   const byName = new Map(existing.map((v) => [v.name, v]))
   return detected.map((name) => byName.get(name) ?? { name, description: '', default: '' })

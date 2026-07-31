@@ -18,14 +18,14 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSe
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI-Dependency: eine Session pro Request."""
+    """FastAPI dependency: one session per request."""
     async with SessionLocal() as session:
         yield session
 
 
 async def init_db() -> None:
-    """Schema anlegen. Für dieses lokale Tool reicht create_all statt Migrationen."""
-    from . import models  # noqa: F401  -- Tabellen registrieren
+    """Create the schema. For a local tool create_all beats a migration framework."""
+    from . import models  # noqa: F401  -- register the tables
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

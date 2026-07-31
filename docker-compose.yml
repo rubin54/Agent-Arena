@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: arena
       POSTGRES_DB: arena
     ports:
-      # 5433 nach außen, damit eine lokal installierte Postgres-Instanz auf 5432 nicht kollidiert.
+      # Exposed on 5433 so a locally installed Postgres on 5432 does not clash.
       - "5433:5432"
     volumes:
       - arena-pgdata:/var/lib/postgresql/data

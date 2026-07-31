@@ -16,7 +16,7 @@ async def list_models(
 ) -> CatalogOut:
     count, fetched_at = await catalog.get_catalog_meta(session)
 
-    # Leerer oder abgelaufener Cache wird automatisch nachgeladen.
+    # An empty or expired cache is refreshed automatically.
     if refresh or count == 0 or catalog.is_stale(fetched_at):
         try:
             await catalog.refresh_catalog(session)
@@ -24,7 +24,7 @@ async def list_models(
         except OpenRouterError as exc:
             if count == 0:
                 raise HTTPException(status_code=502, detail=exc.message) from exc
-            # Cache ist da, nur veraltet -- lieber alte Daten als gar keine.
+            # The cache exists but is stale -- stale data beats no data.
 
     entries = await catalog.list_models(session)
     return CatalogOut(
@@ -56,5 +56,5 @@ async def refresh_models(session: AsyncSession = Depends(get_session)) -> Catalo
 async def get_model(model_id: str, session: AsyncSession = Depends(get_session)) -> ModelOut:
     entry = await catalog.get_model(session, model_id)
     if entry is None:
-        raise HTTPException(status_code=404, detail="Modell nicht im Katalog")
+        raise HTTPException(status_code=404, detail="Model not in catalog")
     return ModelOut.model_validate(entry)

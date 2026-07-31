@@ -15,8 +15,8 @@ interface SelectionValue {
 
 const SelectionContext = createContext<SelectionValue | null>(null)
 
-/** Die Modell-Auswahl überlebt Seitenwechsel und Reloads -- man wählt im Katalog
- *  und startet den Run von woanders aus. */
+/** The model selection survives navigation and reloads -- you pick in the catalog
+ *  and start the run from somewhere else. */
 export function SelectionProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<string[]>(() => {
     try {
@@ -64,6 +64,6 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 
 export function useSelection(): SelectionValue {
   const ctx = useContext(SelectionContext)
-  if (!ctx) throw new Error('useSelection muss innerhalb von SelectionProvider benutzt werden')
+  if (!ctx) throw new Error('useSelection must be used inside a SelectionProvider')
   return ctx
 }

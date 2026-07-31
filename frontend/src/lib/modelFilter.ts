@@ -31,11 +31,11 @@ export const DEFAULT_FILTERS: ModelFilters = {
   sort: 'name',
 }
 
-/** OpenRouter meldet Fähigkeiten über `supported_parameters`. */
+/** OpenRouter reports capabilities through `supported_parameters`. */
 export const CAPABILITIES: { key: string; label: string; params: string[] }[] = [
-  { key: 'tools', label: 'Tool Calling', params: ['tools', 'tool_choice'] },
+  { key: 'tools', label: 'Tool calling', params: ['tools', 'tool_choice'] },
   { key: 'reasoning', label: 'Reasoning', params: ['reasoning', 'include_reasoning'] },
-  { key: 'structured', label: 'Structured Output', params: ['structured_outputs'] },
+  { key: 'structured', label: 'Structured output', params: ['structured_outputs'] },
   { key: 'json', label: 'JSON Mode', params: ['response_format'] },
   { key: 'seed', label: 'Seed', params: ['seed'] },
   { key: 'logprobs', label: 'Logprobs', params: ['logprobs', 'top_logprobs'] },
@@ -48,7 +48,7 @@ export function hasCapability(model: ModelInfo, key: string): boolean {
 }
 
 export const CONTEXT_STEPS = [
-  { label: 'Beliebig', value: 0 },
+  { label: 'Any', value: 0 },
   { label: '≥ 32K', value: 32_000 },
   { label: '≥ 128K', value: 128_000 },
   { label: '≥ 200K', value: 200_000 },
@@ -56,7 +56,7 @@ export const CONTEXT_STEPS = [
 ]
 
 export const PRICE_STEPS = [
-  { label: 'Beliebig', value: null },
+  { label: 'Any', value: null },
   { label: '≤ $0.50 / M', value: 0.5 },
   { label: '≤ $1 / M', value: 1 },
   { label: '≤ $3 / M', value: 3 },
@@ -64,16 +64,16 @@ export const PRICE_STEPS = [
 ]
 
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'name', label: 'Name (A–Z)' },
-  { value: 'newest', label: 'Neueste zuerst' },
-  { value: 'context_desc', label: 'Größter Context' },
-  { value: 'price_in_asc', label: 'Input-Preis ↑' },
-  { value: 'price_in_desc', label: 'Input-Preis ↓' },
-  { value: 'price_out_asc', label: 'Output-Preis ↑' },
-  { value: 'price_out_desc', label: 'Output-Preis ↓' },
+  { value: 'name', label: 'Name (A-Z)' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'context_desc', label: 'Largest context' },
+  { value: 'price_in_asc', label: 'Input price ↑' },
+  { value: 'price_in_desc', label: 'Input price ↓' },
+  { value: 'price_out_asc', label: 'Output price ↑' },
+  { value: 'price_out_desc', label: 'Output price ↓' },
 ]
 
-/** Modelle ohne bekannten Preis sortieren wir ans Ende statt an den Anfang. */
+/** Models without a known price sort to the end rather than the front. */
 function priceKey(value: number | null): number {
   if (value === null || value < 0) return Number.POSITIVE_INFINITY
   return value

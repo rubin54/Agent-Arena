@@ -27,7 +27,7 @@ export function TasksPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [launching, setLaunching] = useState<Task | null>(null)
 
-  // Erste Task automatisch öffnen, damit die rechte Spalte nicht leer bleibt.
+  // Open the first task automatically so the right pane is not empty.
   useEffect(() => {
     if (activeId === null && tasks && tasks.length > 0) setActiveId(tasks[0].id)
   }, [tasks, activeId])
@@ -50,7 +50,7 @@ export function TasksPage() {
 
   const handleDelete = async () => {
     if (!active) return
-    if (!confirm(`Task „${active.name}“ inklusive aller Runs löschen?`)) return
+    if (!confirm(`Delete task "${active.name}" and all of its runs?`)) return
     await deleteTask.mutateAsync(active.id)
     setActiveId(null)
   }
@@ -62,22 +62,22 @@ export function TasksPage() {
     <div className="grid gap-5 lg:grid-cols-[19rem_1fr]">
       <aside className="space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Aufgaben</h1>
+          <h1 className="text-lg font-semibold">Tasks</h1>
           <Button
             size="sm"
             variant="primary"
             onClick={() => setActiveId(NEW)}
-            title="Neue Aufgabe anlegen"
+            title="Create a new task"
           >
             <Plus className="h-3.5 w-3.5" />
-            Neu
+            New
           </Button>
         </div>
 
         {selection.selected.length > 0 && (
           <div className="rounded-lg border border-accent-600/40 bg-accent-600/10 px-3 py-2 text-xs text-accent-300">
-            {selection.selected.length} Modelle im Katalog ausgewählt – werden beim Start
-            vorbelegt.
+            {selection.selected.length} models selected in the catalog -- they pre-fill the
+            launcher.
           </div>
         )}
 
@@ -89,7 +89,7 @@ export function TasksPage() {
           <div className="space-y-1.5">
             {activeId === NEW && (
               <div className="card border-accent-500 bg-accent-600/10 px-3 py-2.5 text-sm">
-                Neue Aufgabe …
+                New task …
               </div>
             )}
             {(tasks ?? []).map((task) => (
@@ -116,7 +116,7 @@ export function TasksPage() {
               </button>
             ))}
             {!tasks?.length && activeId !== NEW && (
-              <p className="px-1 py-4 text-xs text-ink-500">Noch keine Aufgaben angelegt.</p>
+              <p className="px-1 py-4 text-xs text-ink-500">No tasks created yet.</p>
             )}
           </div>
         )}
@@ -126,12 +126,12 @@ export function TasksPage() {
         {!editing ? (
           <EmptyState
             icon={<FileText className="h-8 w-8" />}
-            title="Keine Aufgabe ausgewählt"
-            hint="Lege eine Aufgabe an – ein One-Shot-Prompt mit Platzhaltern, den du gegen beliebig viele Modelle laufen lassen kannst."
+            title="No task selected"
+            hint="Create a task -- a one-shot prompt with placeholders that you can run against as many models as you like."
             action={
               <Button variant="primary" onClick={() => setActiveId(NEW)}>
                 <Plus className="h-3.5 w-3.5" />
-                Aufgabe anlegen
+                Create task
               </Button>
             }
           />
@@ -145,21 +145,11 @@ export function TasksPage() {
                   loading={duplicateTask.isPending}
                 >
                   <Copy className="h-3.5 w-3.5" />
-                  Duplizieren
+                  Duplicate
                 </Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setLaunching(active)}
-                  disabled={active.kind === 'agent'}
-                  title={
-                    active.kind === 'agent'
-                      ? 'Agent-Tasks können noch nicht ausgeführt werden'
-                      : 'Run starten'
-                  }
-                >
+                <Button size="sm" variant="primary" onClick={() => setLaunching(active)}>
                   <Play className="h-3.5 w-3.5" />
-                  Ausführen
+                  Run
                 </Button>
               </div>
             )}

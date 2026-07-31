@@ -8,8 +8,8 @@ import { Button, cx } from './ui'
 
 const FENCE_RE = /^\s*```([a-zA-Z0-9_+-]*)\r?\n([\s\S]*?)\r?\n?```\s*$/
 
-/** Modelle verpacken strukturierte Antworten gern in einen einzelnen Code-Block.
- *  Für die Darstellung wollen wir den Inhalt, nicht den Zaun drumherum. */
+/** Models like to wrap structured answers in a single code block.
+ *  For rendering we want the content, not the fence around it. */
 function unwrapFence(text: string): { language: string | null; body: string } {
   const match = text.match(FENCE_RE)
   if (!match) return { language: null, body: text }
@@ -47,10 +47,10 @@ function HtmlPreview({ html }: { html: string }) {
   return (
     <div className="space-y-2">
       <div className="overflow-hidden rounded-lg border border-ink-700 bg-white">
-        {/* sandbox ohne allow-same-origin: das Dokument kommt aus einem fremden Modell
-            und darf weder auf die App noch auf deren Storage zugreifen. */}
+        {/* sandbox without allow-same-origin: the document comes from a foreign model
+            and must reach neither the app nor its storage. */}
         <iframe
-          title="HTML-Ausgabe"
+          title="HTML output"
           srcDoc={html}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
@@ -58,7 +58,7 @@ function HtmlPreview({ html }: { html: string }) {
         />
       </div>
       <Button size="sm" variant="ghost" onClick={() => setExpanded((e) => !e)}>
-        {expanded ? 'Verkleinern' : 'Vergrößern'}
+        {expanded ? 'Collapse' : 'Expand'}
       </Button>
     </div>
   )
@@ -82,7 +82,7 @@ export function ResultRenderer({
     return (
       <div className="space-y-2">
         <p className="text-xs text-amber-400">
-          Antwort ist kein gültiges JSON – Rohtext wird angezeigt.
+          Response is not valid JSON -- showing the raw text.
         </p>
         <pre className="overflow-x-auto rounded-lg border border-ink-700 bg-ink-900 p-3 font-mono text-xs whitespace-pre-wrap">
           {text}

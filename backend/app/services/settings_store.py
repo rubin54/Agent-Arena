@@ -31,7 +31,7 @@ async def delete_setting(session: AsyncSession, key: str) -> None:
 
 
 async def resolve_api_key(session: AsyncSession) -> tuple[str | None, str]:
-    """(key, source) -- ein UI-Override sticht die .env."""
+    """(key, source) -- a UI override beats the .env."""
     override = await get_setting(session, API_KEY_SETTING)
     if override:
         return override, "override"
