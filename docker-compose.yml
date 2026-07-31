@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: agent-arena-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: arena
+      POSTGRES_PASSWORD: arena
+      POSTGRES_DB: arena
+    ports:
+      # 5433 nach außen, damit eine lokal installierte Postgres-Instanz auf 5432 nicht kollidiert.
+      - "5433:5432"
+    volumes:
+      - arena-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arena -d arena"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  arena-pgdata:
