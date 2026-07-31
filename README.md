@@ -88,6 +88,29 @@ Configurable per task: tool selection, maximum number of steps, per-command time
 network access, and starter files placed in the workspace before the first step. Models without tool
 calling are filtered out before launch and rejected with a clear message at run time.
 
+**Checks** — a task can define checkable conditions that are evaluated automatically after every
+run. A model passes only when every check passes, which turns the side-by-side comparison into a
+pass/fail benchmark: the run list shows `passed/evaluated`, results can be sorted passed-first.
+
+| Check | Applies to | Passes when |
+| --- | --- | --- |
+| `contains` / `not_contains` | any | the answer does (not) contain the text |
+| `regex` | any | a regular expression matches |
+| `is_json` | any | the answer parses as JSON (a single ```json fence is unwrapped) |
+| `json_schema` | any | the answer validates against the task's JSON schema |
+| `min_length` / `max_length` | any | the answer length is within bounds |
+| `max_cost_usd` / `max_latency_ms` | any | the item stayed within budget |
+| `max_steps` | agent | the agent needed at most N turns |
+| `file_exists` / `file_contains` | agent | the file is present / contains the text |
+| `command_exit_zero` | agent | the command exits 0 in the finished workspace |
+
+The last one is the interesting one: after the agent reports it is done, the command runs in the
+container it left behind, before the sandbox is torn down. For the seeded task *„Agent: find and fix
+a bug"* that means `python3 test_stats.py` — exit 0 or it did not work, no room for interpretation.
+
+A check that cannot be evaluated (no JSON schema defined, no cost reported, sandbox unavailable)
+counts as failed rather than silently passing, and a model whose run errored out never passes.
+
 **History** — every run stores a snapshot of the task, so later prompt edits never distort old
 results. Runs can be repeated with identical settings.
 
@@ -184,11 +207,12 @@ It contains Python 3.12, Node, npm, git, curl, jq, ripgrep and tree.
 ## Status and next step
 
 Implemented: catalog, tasks, parallel one-shot runs, agent harness with a Docker sandbox, rendering,
-cost tracking, history.
+cost tracking, automatic checks, history.
 
-**Open — evaluating results.** Runs place answers side by side, but nothing records which one was
-good. Worth adding: a manual rating per result, automatic checks (JSON schema, regex, "must
-contain"), assertions for agent runs (file exists, command exits 0) and a leaderboard across runs.
+**Open — subjective quality.** Checks cover everything that can be verified mechanically. What they
+cannot judge is whether an explanation is good or a landing page looks decent. Worth adding: a manual
+rating per result, and LLM-as-judge for the same purpose.
 
-Further ideas: streaming instead of polling, N repetitions per model to measure variance, CSV export,
-image inputs for multimodal models.
+Further ideas: N repetitions per model to measure variance (checks make this meaningful — success
+rate instead of a single sample), a leaderboard across runs, streaming instead of polling, CSV
+export, image inputs for multimodal models.

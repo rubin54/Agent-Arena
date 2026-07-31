@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from ..openrouter import OpenRouterClient, OpenRouterError
-from . import agent_tools
+from . import agent_tools, assertions as assertions_service
 from .sandbox import DockerSandbox, SandboxConfig, SandboxError
 
 log = logging.getLogger("arena.agent")
@@ -42,6 +42,8 @@ class AgentResult:
     error: str | None = None
     workspace: list[dict[str, Any]] = field(default_factory=list)
     turns: int = 0
+    # Results of the sandbox assertions; the output ones are added by the runner.
+    sandbox_assertion_results: list[dict[str, Any]] = field(default_factory=list)
 
 
 def sandbox_config_from(agent_config: dict[str, Any]) -> SandboxConfig:
@@ -69,6 +71,7 @@ async def run_agent(
     base_messages: list[dict[str, Any]],
     params: dict[str, Any],
     agent_config: dict[str, Any],
+    sandbox_assertions: list[dict[str, Any]] | None = None,
     on_step: StepCallback | None = None,
 ) -> AgentResult:
     tools = agent_tools.resolve_tools((agent_config or {}).get("tools"))
@@ -186,6 +189,13 @@ async def run_agent(
                     f"The agent hit the limit of {max_steps} steps without "
                     "producing a final answer."
                 )
+
+        # Assertions run while the container is still alive -- that is the whole
+        # point of `command_exit_zero`: verify in the workspace the agent left behind.
+        if sandbox_assertions:
+            result.sandbox_assertion_results = await assertions_service.evaluate_sandbox(
+                sandbox_assertions, sandbox
+            )
 
         try:
             result.workspace = await sandbox.collect_workspace()

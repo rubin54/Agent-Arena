@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
   AppSettings,
+  AssertionType,
   Catalog,
   ConnectionCheck,
   PromptPreview,
@@ -21,6 +22,7 @@ export const keys = {
   run: (id: string) => ['runs', id] as const,
   settings: ['settings'] as const,
   agentTools: ['agent', 'tools'] as const,
+  assertionTypes: ['agent', 'assertion-types'] as const,
   sandbox: ['agent', 'sandbox'] as const,
 }
 
@@ -186,6 +188,14 @@ export function useAgentTools() {
   return useQuery({
     queryKey: keys.agentTools,
     queryFn: () => api.get<ToolInfo[]>('/api/agent/tools'),
+    staleTime: Infinity,
+  })
+}
+
+export function useAssertionTypes() {
+  return useQuery({
+    queryKey: keys.assertionTypes,
+    queryFn: () => api.get<AssertionType[]>('/api/agent/assertion-types'),
     staleTime: Infinity,
   })
 }

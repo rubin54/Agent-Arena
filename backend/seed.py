@@ -91,6 +91,11 @@ EXAMPLES: list[dict] = [
             }
         ],
         "render_mode": "json",
+        "assertions": [
+            {"type": "is_json"},
+            {"type": "json_schema"},
+            {"type": "contains", "value": "2024-0815"},
+        ],
         "json_schema": {
             "type": "object",
             "properties": {
@@ -143,6 +148,10 @@ EXAMPLES: list[dict] = [
         ],
         "render_mode": "code",
         "code_language": "python",
+        "assertions": [
+            {"type": "regex", "pattern": r"(?m)^\s*(def|class)\s+\w+"},
+            {"type": "min_length", "value": 200},
+        ],
         "params": {"temperature": 0.2, "max_tokens": 2000},
     },
     {
@@ -158,6 +167,12 @@ EXAMPLES: list[dict] = [
         "variables": [],
         "render_mode": "markdown",
         "params": {"temperature": 0.3},
+        # The point of the whole exercise: the tests either pass or they do not.
+        "assertions": [
+            {"type": "command_exit_zero", "command": "python3 test_stats.py"},
+            {"type": "file_contains", "path": "stats.py", "value": "def median"},
+            {"type": "max_steps", "value": 12},
+        ],
         "agent_config": {
             "max_steps": 15,
             "network": False,

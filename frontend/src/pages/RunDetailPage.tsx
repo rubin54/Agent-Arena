@@ -9,10 +9,11 @@ import { Select } from '../components/FilterControls'
 import { Badge, Button, ErrorBox, Modal, Spinner, Stat, StatusBadge, cx } from '../components/ui'
 import { formatCost, formatDateTime, formatDuration, formatTokens } from '../lib/format'
 
-type ItemSort = 'position' | 'latency' | 'cost' | 'length'
+type ItemSort = 'position' | 'passed' | 'latency' | 'cost' | 'length'
 
 const SORTS: { value: ItemSort; label: string }[] = [
   { value: 'position', label: 'Selection order' },
+  { value: 'passed', label: 'Passed first' },
   { value: 'latency', label: 'Fastest first' },
   { value: 'cost', label: 'Cheapest first' },
   { value: 'length', label: 'Longest answer first' },
@@ -22,6 +23,13 @@ function sortItems(items: RunItem[], sort: ItemSort): RunItem[] {
   const copy = [...items]
   const last = Number.POSITIVE_INFINITY
   switch (sort) {
+    case 'passed':
+      // passed → not evaluated → failed, each group by original position.
+      return copy.sort(
+        (a, b) =>
+          (a.passed === true ? 0 : a.passed === null ? 1 : 2) -
+            (b.passed === true ? 0 : b.passed === null ? 1 : 2) || a.position - b.position,
+      )
     case 'latency':
       return copy.sort((a, b) => (a.latency_ms ?? last) - (b.latency_ms ?? last))
     case 'cost':
@@ -127,7 +135,23 @@ export function RunDetailPage() {
 
         {run.error && <ErrorBox>{run.error}</ErrorBox>}
 
-        <div className="card grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
+        <div
+          className={cx(
+            'card grid grid-cols-2 gap-4 p-4',
+            run.evaluated_count > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4',
+          )}
+        >
+          {run.evaluated_count > 0 && (
+            <Stat
+              label="Passed"
+              title="Models where every check passed"
+              value={
+                <span className={run.passed_count === run.evaluated_count ? 'text-emerald-400' : ''}>
+                  {run.passed_count}/{run.evaluated_count}
+                </span>
+              }
+            />
+          )}
           <Stat label="Total cost" value={formatCost(run.total_cost_usd)} />
           <Stat label="Total tokens" value={formatTokens(stats.totalTokens)} />
           <Stat label="Avg. response time" value={formatDuration(stats.avgLatency)} />

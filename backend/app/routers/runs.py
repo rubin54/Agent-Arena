@@ -31,6 +31,8 @@ def _summarize(run: Run, task_name: str) -> dict:
         "completed_count": sum(1 for i in items if i.status == "completed"),
         "failed_count": sum(1 for i in items if i.status == "failed"),
         "total_cost_usd": round(sum(costs), 6) if costs else 0.0,
+        "evaluated_count": sum(1 for i in items if i.passed is not None),
+        "passed_count": sum(1 for i in items if i.passed),
     }
 
 
@@ -83,6 +85,7 @@ async def create_run(payload: RunCreate, session: AsyncSession = Depends(get_ses
         "json_schema": task.json_schema,
         "params": {**(task.params or {}), **(payload.params_override or {})},
         "agent_config": task.agent_config,
+        "assertions": task.assertions,
     }
 
     detected = templating.extract_variables(task.system_prompt or "", task.prompt_template or "")

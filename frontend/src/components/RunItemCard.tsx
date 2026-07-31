@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, Maximize2 } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, Copy, Maximize2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { RenderMode, RunItem } from '../api/types'
 import { formatCost, formatDuration, formatTokens } from '../lib/format'
@@ -27,6 +27,7 @@ export function RunItemCard({
 
   const steps = item.steps ?? []
   const isAgent = steps.length > 0
+  const assertionResults = item.assertion_results ?? []
 
   const copy = async () => {
     if (!item.output_text) return
@@ -42,8 +43,42 @@ export function RunItemCard({
           <h3 className="truncate text-sm font-semibold">{item.model_name}</h3>
           <p className="truncate font-mono text-[11px] text-ink-500">{item.model_id}</p>
         </div>
-        <StatusBadge status={item.status} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {item.passed !== null && (
+            <Badge tone={item.passed ? 'green' : 'red'}>
+              {item.passed ? (
+                <CheckCircle2 className="h-3 w-3" />
+              ) : (
+                <XCircle className="h-3 w-3" />
+              )}
+              {item.passed ? 'Passed' : 'Failed'}
+            </Badge>
+          )}
+          <StatusBadge status={item.status} />
+        </div>
       </header>
+
+      {assertionResults.length > 0 && (
+        <ul className="divide-y divide-ink-800 border-b border-ink-700 bg-ink-900/40">
+          {assertionResults.map((result, i) => (
+            <li key={i} className="flex items-start gap-2 px-4 py-1.5">
+              {result.passed ? (
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+              ) : (
+                <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" />
+              )}
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] text-ink-200">{result.label}</span>
+                {result.detail && (
+                  <span className="ml-1.5 font-mono text-[10px] break-all text-ink-500">
+                    {result.detail}
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="grid grid-cols-4 gap-2 border-b border-ink-700 bg-ink-900/50 px-4 py-2.5">
         <Metric label="Time" value={formatDuration(item.latency_ms)} />

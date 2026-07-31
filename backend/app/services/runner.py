@@ -13,7 +13,7 @@ from ..config import get_settings
 from ..db import SessionLocal
 from ..models import ModelCatalogEntry, Run, RunItem
 from ..openrouter import OpenRouterClient, OpenRouterError
-from . import agent, settings_store, templating
+from . import agent, assertions as assertions_service, settings_store, templating
 
 log = logging.getLogger("arena.runner")
 
@@ -107,9 +107,11 @@ async def _execute_item(
             messages = _build_messages(snapshot, values)
 
             started = time.perf_counter()
+            extra_results: list[dict[str, Any]] = []
+            steps_used: int | None = None
             try:
                 if snapshot.get("kind") == "agent":
-                    await _execute_agent(
+                    extra_results, steps_used = await _execute_agent(
                         item, client, snapshot, messages, catalog_entry, pricing, started, session
                     )
                 else:
@@ -121,6 +123,10 @@ async def _execute_item(
                 item.latency_ms = int((time.perf_counter() - started) * 1000)
                 item.finished_at = datetime.now(timezone.utc)
                 item.messages = messages
+
+            # Always evaluated, including for failed items -- a benchmark that
+            # silently skips its checks on failure would report the wrong thing.
+            _apply_assertions(item, snapshot, extra_results=extra_results, steps_used=steps_used)
             await session.commit()
 
 
@@ -157,7 +163,7 @@ async def _execute_agent(
     pricing: dict[str, float | None],
     started: float,
     session: AsyncSession,
-) -> None:
+) -> tuple[list[dict[str, Any]], int | None]:
     # An agent run is pointless without tool support -- fail fast with a clear message
     # instead of letting the model hallucinate an answer it never worked for.
     if catalog_entry is not None and not _supports_tools(catalog_entry):
@@ -169,7 +175,7 @@ async def _execute_agent(
         item.latency_ms = int((time.perf_counter() - started) * 1000)
         item.finished_at = datetime.now(timezone.utc)
         item.messages = messages
-        return
+        return [], None
 
     params = {
         k: v
@@ -181,12 +187,15 @@ async def _execute_agent(
         item.steps = list(steps)
         await session.commit()
 
+    _, sandbox_assertions = assertions_service.split(snapshot.get("assertions") or [])
+
     result = await agent.run_agent(
         client=client,
         model_id=item.model_id,
         base_messages=messages,
         params=params,
         agent_config=snapshot.get("agent_config") or {},
+        sandbox_assertions=sandbox_assertions,
         on_step=publish_steps,
     )
 
@@ -221,6 +230,50 @@ async def _execute_agent(
         item.error = "The agent did not produce a final answer."
     else:
         item.status = "completed"
+
+    return result.sandbox_assertion_results, result.turns
+
+
+def _apply_assertions(
+    item: RunItem,
+    snapshot: dict[str, Any],
+    *,
+    extra_results: list[dict[str, Any]],
+    steps_used: int | None,
+) -> None:
+    """Evaluate the task's assertions and set `assertion_results` / `passed`."""
+    declared = snapshot.get("assertions") or []
+    if not declared:
+        item.assertion_results = []
+        item.passed = None
+        return
+
+    output_assertions, sandbox_assertions = assertions_service.split(declared)
+    output_results = assertions_service.evaluate_output(
+        output_assertions,
+        output_text=item.output_text,
+        json_schema=snapshot.get("json_schema"),
+        cost_usd=item.cost_usd,
+        latency_ms=item.latency_ms,
+        steps_used=steps_used,
+    )
+
+    # If the sandbox never came up, its checks have no result -- record them as failed
+    # rather than dropping them, so the count still matches the task definition.
+    missing = [
+        {
+            "type": a.get("type"),
+            "label": a.get("label") or assertions_service.describe(a),
+            "passed": False,
+            "detail": "not evaluated (sandbox unavailable)",
+        }
+        for a in sandbox_assertions
+    ][len(extra_results) :]
+
+    combined = assertions_service.reorder(declared, [*output_results, *extra_results, *missing])
+    item.assertion_results = combined
+    # A model that errored out has not passed, whatever the individual checks say.
+    item.passed = assertions_service.overall(combined) and item.status == "completed"
 
 
 def _supports_tools(entry: ModelCatalogEntry) -> bool:

@@ -72,6 +72,7 @@ class TaskBase(BaseModel):
     json_schema: dict[str, Any] | None = None
     params: dict[str, Any] = {}
     agent_config: dict[str, Any] = {}
+    assertions: list[dict[str, Any]] = []
     default_model_ids: list[str] = []
 
 
@@ -93,6 +94,7 @@ class TaskUpdate(BaseModel):
     json_schema: dict[str, Any] | None = None
     params: dict[str, Any] | None = None
     agent_config: dict[str, Any] | None = None
+    assertions: list[dict[str, Any]] | None = None
     default_model_ids: list[str] | None = None
 
 
@@ -136,6 +138,8 @@ class RunItemOut(ORMBase):
     finished_at: datetime | None = None
     # Step trace for agent runs; empty for one-shot runs.
     steps: list[dict[str, Any]] = []
+    assertion_results: list[dict[str, Any]] = []
+    passed: bool | None = None
 
 
 class RunItemDetail(RunItemOut):
@@ -157,6 +161,9 @@ class RunSummary(ORMBase):
     completed_count: int = 0
     failed_count: int = 0
     total_cost_usd: float = 0.0
+    # Assertion outcome across the run; evaluated_count is 0 when the task has none.
+    evaluated_count: int = 0
+    passed_count: int = 0
 
 
 class RunDetail(RunSummary):

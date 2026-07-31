@@ -42,6 +42,7 @@ export function RunsPage() {
                 <th className="px-4 py-2.5 font-medium">Task</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 font-medium">Models</th>
+                <th className="px-4 py-2.5 font-medium">Passed</th>
                 <th className="px-4 py-2.5 font-medium">Cost</th>
                 <th className="px-4 py-2.5 font-medium">Duration</th>
                 <th className="px-4 py-2.5 font-medium">Started</th>
@@ -69,6 +70,21 @@ export function RunsPage() {
                     {run.completed_count}/{run.item_count}
                     {run.failed_count > 0 && (
                       <span className="ml-1.5 text-red-400">({run.failed_count} ✗)</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-xs">
+                    {run.evaluated_count > 0 ? (
+                      <span
+                        className={
+                          run.passed_count === run.evaluated_count
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
+                        }
+                      >
+                        {run.passed_count}/{run.evaluated_count}
+                      </span>
+                    ) : (
+                      <span className="text-ink-600">—</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-ink-300">

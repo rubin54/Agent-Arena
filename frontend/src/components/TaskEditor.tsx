@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AgentConfig, RenderMode, Task, TaskInput, TaskKind } from '../api/types'
 import { extractVariables, renderTemplate, syncVariables } from '../lib/template'
 import { AgentConfigEditor } from './AgentConfigEditor'
+import { AssertionEditor } from './AssertionEditor'
 import { Select } from './FilterControls'
 import { Badge, Button, ErrorBox, Modal, cx } from './ui'
 
@@ -34,6 +35,7 @@ export const EMPTY_TASK: TaskInput = {
   json_schema: null,
   params: {},
   agent_config: {},
+  assertions: [],
   default_model_ids: [],
 }
 
@@ -273,6 +275,15 @@ export function TaskEditor({
             </p>
           </div>
         )}
+      </Section>
+
+      <Section title="Checks" hint="Turn the comparison into a pass/fail benchmark.">
+        <AssertionEditor
+          assertions={draft.assertions}
+          kind={draft.kind}
+          hasJsonSchema={Boolean(schemaText.trim())}
+          onChange={(assertions) => patch({ assertions })}
+        />
       </Section>
 
       <Section title="Model parameters" hint="Applied to every model in this run.">

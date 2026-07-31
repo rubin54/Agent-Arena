@@ -55,6 +55,7 @@ export interface Task {
   json_schema: Record<string, unknown> | null
   params: Record<string, unknown>
   agent_config: AgentConfig
+  assertions: Assertion[]
   default_model_ids: string[]
   created_at: string
   updated_at: string
@@ -81,6 +82,32 @@ export interface ToolInfo {
   name: string
   label: string
   description: string
+}
+
+/** One checkable condition on a task. Which fields matter depends on `type`. */
+export interface Assertion {
+  type: string
+  label?: string
+  value?: string | number
+  pattern?: string
+  path?: string
+  command?: string
+  case_sensitive?: boolean
+}
+
+export interface AssertionResult {
+  type: string
+  label: string
+  passed: boolean
+  detail: string
+}
+
+export interface AssertionType {
+  type: string
+  label: string
+  description: string
+  fields: string[]
+  scope: 'any' | 'agent'
 }
 
 export interface SandboxStatus {
@@ -137,6 +164,9 @@ export interface RunItem {
   started_at: string | null
   finished_at: string | null
   steps: RunStep[]
+  assertion_results: AssertionResult[]
+  /** null when the task defines no assertions -- not the same as failed. */
+  passed: boolean | null
 }
 
 export interface RunSummary {
@@ -153,6 +183,8 @@ export interface RunSummary {
   completed_count: number
   failed_count: number
   total_cost_usd: number
+  evaluated_count: number
+  passed_count: number
 }
 
 export interface RunDetail extends RunSummary {

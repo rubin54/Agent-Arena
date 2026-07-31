@@ -91,6 +91,9 @@ class Task(Base):
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     # Agent harness settings (max_steps, tools, network, setup_files, ...)
     agent_config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    # Checkable conditions evaluated after every run, e.g.
+    # [{"type": "command_exit_zero", "command": "python3 test.py"}]
+    assertions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
 
     # Model selection last used for this task; pre-fills the launcher in the UI.
     default_model_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
@@ -163,6 +166,11 @@ class RunItem(Base):
     total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # One entry per assertion of the task; empty when the task defines none.
+    assertion_results: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    # True/False once assertions ran, None when there was nothing to check.
+    passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

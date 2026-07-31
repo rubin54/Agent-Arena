@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from typing import Literal
+
 from ..config import get_settings
-from ..services import agent_tools, sandbox
+from ..services import agent_tools, assertions, sandbox
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -11,6 +13,15 @@ class ToolInfo(BaseModel):
     name: str
     label: str
     description: str
+
+
+class AssertionType(BaseModel):
+    type: str
+    label: str
+    description: str
+    fields: list[str]
+    # 'agent' types are only offered for agent tasks.
+    scope: Literal["any", "agent"]
 
 
 class SandboxStatus(BaseModel):
@@ -26,6 +37,11 @@ async def list_tools() -> list[ToolInfo]:
         ToolInfo(name=tool.name, label=tool.label, description=tool.description)
         for tool in agent_tools.TOOLS.values()
     ]
+
+
+@router.get("/assertion-types", response_model=list[AssertionType])
+async def list_assertion_types() -> list[AssertionType]:
+    return [AssertionType(**entry) for entry in assertions.CATALOG]
 
 
 @router.get("/sandbox", response_model=SandboxStatus)
