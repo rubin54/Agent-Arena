@@ -56,6 +56,7 @@ export interface Task {
   params: Record<string, unknown>
   agent_config: AgentConfig
   assertions: Assertion[]
+  judge_config: JudgeConfig
   default_model_ids: string[]
   created_at: string
   updated_at: string
@@ -108,6 +109,37 @@ export interface AssertionType {
   description: string
   fields: string[]
   scope: 'any' | 'agent'
+}
+
+export interface JudgeCriterion {
+  key: string
+  label: string
+  description: string
+}
+
+export interface JudgeConfig {
+  enabled?: boolean
+  model?: string
+  scale_max?: number
+  /** Preset keys, or full objects for custom criteria. */
+  criteria?: (string | JudgeCriterion)[]
+}
+
+export interface JudgeCriterionScore {
+  key: string
+  label: string
+  score: number
+  reason: string
+}
+
+export interface JudgeResult {
+  score: number | null
+  criteria: JudgeCriterionScore[]
+  summary: string
+  model: string
+  cost_usd: number | null
+  error: string | null
+  scale_max: number
 }
 
 export interface SandboxStatus {
@@ -167,6 +199,10 @@ export interface RunItem {
   assertion_results: AssertionResult[]
   /** null when the task defines no assertions -- not the same as failed. */
   passed: boolean | null
+  rating: number | null
+  rating_note: string | null
+  judge_score: number | null
+  judge_result: JudgeResult | null
 }
 
 export interface RunSummary {
@@ -185,6 +221,8 @@ export interface RunSummary {
   total_cost_usd: number
   evaluated_count: number
   passed_count: number
+  avg_judge_score: number | null
+  avg_rating: number | null
 }
 
 export interface RunDetail extends RunSummary {

@@ -13,7 +13,13 @@ from ..config import get_settings
 from ..db import SessionLocal
 from ..models import ModelCatalogEntry, Run, RunItem
 from ..openrouter import OpenRouterClient, OpenRouterError
-from . import agent, assertions as assertions_service, settings_store, templating
+from . import (
+    agent,
+    assertions as assertions_service,
+    judge as judge_service,
+    settings_store,
+    templating,
+)
 
 log = logging.getLogger("arena.runner")
 
@@ -128,6 +134,33 @@ async def _execute_item(
             # silently skips its checks on failure would report the wrong thing.
             _apply_assertions(item, snapshot, extra_results=extra_results, steps_used=steps_used)
             await session.commit()
+
+            # Judging costs money and needs an answer, so it only runs for items
+            # that actually produced one.
+            if judge_service.is_enabled(snapshot.get("judge_config")) and item.output_text:
+                await _apply_judge(item, client, snapshot, messages)
+                await session.commit()
+
+
+async def _apply_judge(
+    item: RunItem,
+    client: OpenRouterClient,
+    snapshot: dict[str, Any],
+    messages: list[dict[str, Any]],
+) -> None:
+    prompt = next(
+        (m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), ""
+    )
+    verdict = await judge_service.evaluate(
+        client=client,
+        judge_config=snapshot.get("judge_config") or {},
+        task_prompt=str(prompt),
+        answer=item.output_text or "",
+    )
+    item.judge_score = verdict.score
+    item.judge_result = verdict.to_dict()
+    if verdict.error:
+        log.info("Judge for %s: %s", item.model_id, verdict.error)
 
 
 async def _execute_one_shot(

@@ -111,6 +111,20 @@ a bug"* that means `python3 test_stats.py` — exit 0 or it did not work, no roo
 A check that cannot be evaluated (no JSON schema defined, no cost reported, sandbox unavailable)
 counts as failed rather than silently passing, and a model whose run errored out never passes.
 
+**Judge** — for everything a mechanical check cannot decide, a second model scores each answer
+against explicit criteria (correctness, instruction following, clarity, conciseness, completeness,
+code quality, design, or your own). The judge is **blind**: it never learns which model wrote the
+answer, so it cannot go by reputation. The overall score is the mean of the criterion scores,
+computed locally rather than asked for — models are noticeably better at scoring one dimension at a
+time than at aggregating.
+
+Enable it per task to judge automatically after every result, or press *Judge* on a finished run.
+Each judged answer is one extra request to the judge model and shows up as its own cost.
+
+**Manual rating** — one to five stars plus an optional note per result, for what neither checks nor
+a judge can settle. Clicking the active star clears the rating. The run list shows the mean of both
+scores, and results can be sorted by judge score or by rating.
+
 **History** — every run stores a snapshot of the task, so later prompt edits never distort old
 results. Runs can be repeated with identical settings.
 
@@ -207,12 +221,12 @@ It contains Python 3.12, Node, npm, git, curl, jq, ripgrep and tree.
 ## Status and next step
 
 Implemented: catalog, tasks, parallel one-shot runs, agent harness with a Docker sandbox, rendering,
-cost tracking, automatic checks, history.
+cost tracking, automatic checks, LLM-as-judge, manual rating, history.
 
-**Open — subjective quality.** Checks cover everything that can be verified mechanically. What they
-cannot judge is whether an explanation is good or a landing page looks decent. Worth adding: a manual
-rating per result, and LLM-as-judge for the same purpose.
+**Open — variance.** Every result so far is a single sample, and models are not deterministic. N
+repetitions per model would turn pass/fail into a success rate and a judge score into a mean with a
+spread. All three scoring layers are already in place, so this is mostly a matter of running each
+model k times and aggregating.
 
-Further ideas: N repetitions per model to measure variance (checks make this meaningful — success
-rate instead of a single sample), a leaderboard across runs, streaming instead of polling, CSV
-export, image inputs for multimodal models.
+Further ideas: a leaderboard across runs, streaming instead of polling, CSV export, image inputs for
+multimodal models.

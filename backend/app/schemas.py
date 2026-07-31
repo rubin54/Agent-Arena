@@ -73,6 +73,7 @@ class TaskBase(BaseModel):
     params: dict[str, Any] = {}
     agent_config: dict[str, Any] = {}
     assertions: list[dict[str, Any]] = []
+    judge_config: dict[str, Any] = {}
     default_model_ids: list[str] = []
 
 
@@ -95,6 +96,7 @@ class TaskUpdate(BaseModel):
     params: dict[str, Any] | None = None
     agent_config: dict[str, Any] | None = None
     assertions: list[dict[str, Any]] | None = None
+    judge_config: dict[str, Any] | None = None
     default_model_ids: list[str] | None = None
 
 
@@ -140,6 +142,16 @@ class RunItemOut(ORMBase):
     steps: list[dict[str, Any]] = []
     assertion_results: list[dict[str, Any]] = []
     passed: bool | None = None
+    rating: int | None = None
+    rating_note: str | None = None
+    judge_score: float | None = None
+    judge_result: dict[str, Any] | None = None
+
+
+class RatingUpdate(BaseModel):
+    # None leaves the field untouched; rating 0 clears it.
+    rating: int | None = Field(default=None, ge=0, le=5)
+    rating_note: str | None = None
 
 
 class RunItemDetail(RunItemOut):
@@ -164,6 +176,8 @@ class RunSummary(ORMBase):
     # Assertion outcome across the run; evaluated_count is 0 when the task has none.
     evaluated_count: int = 0
     passed_count: int = 0
+    avg_judge_score: float | None = None
+    avg_rating: float | None = None
 
 
 class RunDetail(RunSummary):

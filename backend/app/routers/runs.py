@@ -8,8 +8,15 @@ from sqlalchemy.orm import selectinload
 
 from ..db import get_session
 from ..models import ModelCatalogEntry, Run, RunItem, Task
-from ..schemas import RunCreate, RunDetail, RunItemDetail, RunItemOut, RunSummary
-from ..services import runner, templating
+from ..schemas import (
+    RatingUpdate,
+    RunCreate,
+    RunDetail,
+    RunItemDetail,
+    RunItemOut,
+    RunSummary,
+)
+from ..services import judge as judge_service, runner, settings_store, templating
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -33,7 +40,14 @@ def _summarize(run: Run, task_name: str) -> dict:
         "total_cost_usd": round(sum(costs), 6) if costs else 0.0,
         "evaluated_count": sum(1 for i in items if i.passed is not None),
         "passed_count": sum(1 for i in items if i.passed),
+        "avg_judge_score": _mean([i.judge_score for i in items]),
+        "avg_rating": _mean([i.rating for i in items]),
     }
+
+
+def _mean(values: list[float | int | None]) -> float | None:
+    present = [v for v in values if v is not None]
+    return round(sum(present) / len(present), 2) if present else None
 
 
 def _task_name(run: Run) -> str:
@@ -86,6 +100,7 @@ async def create_run(payload: RunCreate, session: AsyncSession = Depends(get_ses
         "params": {**(task.params or {}), **(payload.params_override or {})},
         "agent_config": task.agent_config,
         "assertions": task.assertions,
+        "judge_config": task.judge_config,
     }
 
     detected = templating.extract_variables(task.system_prompt or "", task.prompt_template or "")
@@ -142,6 +157,65 @@ async def get_run_item(
     if item is None or item.run_id != run_id:
         raise HTTPException(status_code=404, detail="Run item not found")
     return RunItemDetail.model_validate(item)
+
+
+@router.patch("/{run_id}/items/{item_id}/rating", response_model=RunItemOut)
+async def set_rating(
+    run_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: RatingUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> RunItemOut:
+    item = await session.get(RunItem, item_id)
+    if item is None or item.run_id != run_id:
+        raise HTTPException(status_code=404, detail="Run item not found")
+
+    if payload.rating is not None:
+        # 0 is the UI's way of clearing a rating -- clicking the active star again.
+        item.rating = payload.rating or None
+        item.rated_at = datetime.now(timezone.utc) if item.rating else None
+    if payload.rating_note is not None:
+        item.rating_note = payload.rating_note.strip() or None
+
+    await session.commit()
+    await session.refresh(item)
+    return RunItemOut.model_validate(item)
+
+
+@router.post("/{run_id}/judge", response_model=RunDetail)
+async def judge_run(
+    run_id: uuid.UUID,
+    force: bool = Query(default=False, description="Re-judge items that already have a verdict"),
+    session: AsyncSession = Depends(get_session),
+) -> RunDetail:
+    """Judge a finished run on demand -- for runs whose task had the judge disabled."""
+    run = await session.get(Run, run_id, options=[selectinload(Run.items)])
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status in ("pending", "running"):
+        raise HTTPException(status_code=400, detail="The run is still in progress")
+
+    snapshot = dict(run.task_snapshot or {})
+    config = snapshot.get("judge_config") or {}
+    if not config.get("model") and not config.get("criteria"):
+        config = {**config, "enabled": True}
+
+    client = await settings_store.build_client(session)
+    prompt = (snapshot.get("prompt_template") or "").strip()
+
+    for item in run.items:
+        if not item.output_text:
+            continue
+        if item.judge_result and not force:
+            continue
+        verdict = await judge_service.evaluate(
+            client=client, judge_config=config, task_prompt=prompt, answer=item.output_text
+        )
+        item.judge_score = verdict.score
+        item.judge_result = verdict.to_dict()
+
+    await session.commit()
+    return await _load_detail(session, run_id)
 
 
 @router.post("/{run_id}/cancel", response_model=RunDetail)

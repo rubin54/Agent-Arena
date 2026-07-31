@@ -28,8 +28,14 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 # migration framework, columns added later need this explicit, idempotent list.
 _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("tasks", "assertions", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
+    ("tasks", "judge_config", "JSONB NOT NULL DEFAULT '{}'::jsonb"),
     ("run_items", "assertion_results", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
     ("run_items", "passed", "BOOLEAN"),
+    ("run_items", "rating", "INTEGER"),
+    ("run_items", "rating_note", "TEXT"),
+    ("run_items", "rated_at", "TIMESTAMPTZ"),
+    ("run_items", "judge_score", "DOUBLE PRECISION"),
+    ("run_items", "judge_result", "JSONB"),
 ]
 
 

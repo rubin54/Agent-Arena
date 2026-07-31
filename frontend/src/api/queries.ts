@@ -5,8 +5,10 @@ import type {
   AssertionType,
   Catalog,
   ConnectionCheck,
+  JudgeCriterion,
   PromptPreview,
   RunDetail,
+  RunItem,
   RunSummary,
   SandboxStatus,
   Task,
@@ -23,6 +25,7 @@ export const keys = {
   settings: ['settings'] as const,
   agentTools: ['agent', 'tools'] as const,
   assertionTypes: ['agent', 'assertion-types'] as const,
+  judgeCriteria: ['agent', 'judge-criteria'] as const,
   sandbox: ['agent', 'sandbox'] as const,
 }
 
@@ -174,6 +177,43 @@ export function useRerun() {
   })
 }
 
+export function useSetRating() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      runId,
+      itemId,
+      rating,
+      note,
+    }: {
+      runId: string
+      itemId: string
+      rating?: number
+      note?: string
+    }) =>
+      api.patch<RunItem>(`/api/runs/${runId}/items/${itemId}/rating`, {
+        rating,
+        rating_note: note,
+      }),
+    onSuccess: (_item, vars) => {
+      qc.invalidateQueries({ queryKey: keys.run(vars.runId) })
+      qc.invalidateQueries({ queryKey: keys.runs })
+    },
+  })
+}
+
+export function useJudgeRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, force }: { runId: string; force?: boolean }) =>
+      api.post<RunDetail>(`/api/runs/${runId}/judge${force ? '?force=true' : ''}`),
+    onSuccess: (run) => {
+      qc.setQueryData(keys.run(run.id), run)
+      qc.invalidateQueries({ queryKey: keys.runs })
+    },
+  })
+}
+
 export function useDeleteRun() {
   const qc = useQueryClient()
   return useMutation({
@@ -196,6 +236,14 @@ export function useAssertionTypes() {
   return useQuery({
     queryKey: keys.assertionTypes,
     queryFn: () => api.get<AssertionType[]>('/api/agent/assertion-types'),
+    staleTime: Infinity,
+  })
+}
+
+export function useJudgeCriteria() {
+  return useQuery({
+    queryKey: keys.judgeCriteria,
+    queryFn: () => api.get<JudgeCriterion[]>('/api/agent/judge-criteria'),
     staleTime: Infinity,
   })
 }

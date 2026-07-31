@@ -94,6 +94,8 @@ class Task(Base):
     # Checkable conditions evaluated after every run, e.g.
     # [{"type": "command_exit_zero", "command": "python3 test.py"}]
     assertions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    # {"enabled": bool, "model": str, "scale_max": int, "criteria": [{key, label, description}]}
+    judge_config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     # Model selection last used for this task; pre-fills the launcher in the UI.
     default_model_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
@@ -171,6 +173,15 @@ class RunItem(Base):
     assertion_results: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     # True/False once assertions ran, None when there was nothing to check.
     passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
+
+    # Manual rating, 1..5, set from the UI.
+    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rating_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # LLM-as-judge: mean criterion score, plus the full verdict.
+    judge_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    judge_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

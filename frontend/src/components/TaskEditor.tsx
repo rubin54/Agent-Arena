@@ -4,6 +4,7 @@ import type { AgentConfig, RenderMode, Task, TaskInput, TaskKind } from '../api/
 import { extractVariables, renderTemplate, syncVariables } from '../lib/template'
 import { AgentConfigEditor } from './AgentConfigEditor'
 import { AssertionEditor } from './AssertionEditor'
+import { JudgeConfigEditor } from './JudgeConfigEditor'
 import { Select } from './FilterControls'
 import { Badge, Button, ErrorBox, Modal, cx } from './ui'
 
@@ -36,6 +37,7 @@ export const EMPTY_TASK: TaskInput = {
   params: {},
   agent_config: {},
   assertions: [],
+  judge_config: {},
   default_model_ids: [],
 }
 
@@ -283,6 +285,13 @@ export function TaskEditor({
           kind={draft.kind}
           hasJsonSchema={Boolean(schemaText.trim())}
           onChange={(assertions) => patch({ assertions })}
+        />
+      </Section>
+
+      <Section title="Judge" hint="For everything a mechanical check cannot decide.">
+        <JudgeConfigEditor
+          config={draft.judge_config}
+          onChange={(judge_config) => patch({ judge_config })}
         />
       </Section>
 

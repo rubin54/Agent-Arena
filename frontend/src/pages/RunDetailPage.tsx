@@ -1,7 +1,7 @@
-import { ArrowLeft, Ban, Columns2, Rows3, RotateCw } from 'lucide-react'
+import { ArrowLeft, Ban, Columns2, Gavel, Rows3, RotateCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useCancelRun, useRerun, useRun } from '../api/queries'
+import { useCancelRun, useJudgeRun, useRerun, useRun } from '../api/queries'
 import type { RenderMode, RunItem } from '../api/types'
 import { ResultRenderer } from '../components/ResultRenderer'
 import { RunItemCard } from '../components/RunItemCard'
@@ -9,11 +9,13 @@ import { Select } from '../components/FilterControls'
 import { Badge, Button, ErrorBox, Modal, Spinner, Stat, StatusBadge, cx } from '../components/ui'
 import { formatCost, formatDateTime, formatDuration, formatTokens } from '../lib/format'
 
-type ItemSort = 'position' | 'passed' | 'latency' | 'cost' | 'length'
+type ItemSort = 'position' | 'passed' | 'judge' | 'rating' | 'latency' | 'cost' | 'length'
 
 const SORTS: { value: ItemSort; label: string }[] = [
   { value: 'position', label: 'Selection order' },
   { value: 'passed', label: 'Passed first' },
+  { value: 'judge', label: 'Best judge score' },
+  { value: 'rating', label: 'Best rating' },
   { value: 'latency', label: 'Fastest first' },
   { value: 'cost', label: 'Cheapest first' },
   { value: 'length', label: 'Longest answer first' },
@@ -30,6 +32,11 @@ function sortItems(items: RunItem[], sort: ItemSort): RunItem[] {
           (a.passed === true ? 0 : a.passed === null ? 1 : 2) -
             (b.passed === true ? 0 : b.passed === null ? 1 : 2) || a.position - b.position,
       )
+    case 'judge':
+      // Unscored items go last, not first.
+      return copy.sort((a, b) => (b.judge_score ?? -1) - (a.judge_score ?? -1))
+    case 'rating':
+      return copy.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
     case 'latency':
       return copy.sort((a, b) => (a.latency_ms ?? last) - (b.latency_ms ?? last))
     case 'cost':
@@ -48,9 +55,12 @@ export function RunDetailPage() {
   const cancelRun = useCancelRun()
   const rerun = useRerun()
 
+  const judgeRun = useJudgeRun()
+
   const [sort, setSort] = useState<ItemSort>('position')
   const [columns, setColumns] = useState<2 | 1>(2)
   const [expanded, setExpanded] = useState<RunItem | null>(null)
+  const hasVerdicts = (run?.items ?? []).some((i) => i.judge_result)
 
   const snapshot = (run?.task_snapshot ?? {}) as {
     render_mode?: RenderMode
@@ -120,6 +130,20 @@ export function RunDetailPage() {
                 Cancel
               </Button>
             )}
+            {!isActive && run.completed_count > 0 && (
+              <Button
+                onClick={() => judgeRun.mutate({ runId: run.id, force: hasVerdicts })}
+                loading={judgeRun.isPending}
+                title={
+                  hasVerdicts
+                    ? 'Score every answer again with the judge model'
+                    : 'Score the answers with the judge model'
+                }
+              >
+                <Gavel className="h-3.5 w-3.5" />
+                {hasVerdicts ? 'Judge again' : 'Judge'}
+              </Button>
+            )}
             <Button
               onClick={async () => {
                 const next = await rerun.mutateAsync(run.id)
@@ -135,12 +159,21 @@ export function RunDetailPage() {
 
         {run.error && <ErrorBox>{run.error}</ErrorBox>}
 
-        <div
-          className={cx(
-            'card grid grid-cols-2 gap-4 p-4',
-            run.evaluated_count > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4',
+        <div className="card grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 lg:grid-cols-6">
+          {run.avg_judge_score !== null && (
+            <Stat
+              label="Ø judge"
+              title="Mean judge score across all scored answers"
+              value={<span className="text-accent-400">{run.avg_judge_score.toFixed(1)}</span>}
+            />
           )}
-        >
+          {run.avg_rating !== null && (
+            <Stat
+              label="Ø rating"
+              title="Mean of your manual ratings"
+              value={<span className="text-amber-400">{run.avg_rating.toFixed(1)} ★</span>}
+            />
+          )}
           {run.evaluated_count > 0 && (
             <Stat
               label="Passed"
@@ -198,6 +231,7 @@ export function RunDetailPage() {
           <RunItemCard
             key={item.id}
             item={item}
+            runId={run.id}
             renderMode={renderMode}
             codeLanguage={snapshot.code_language}
             compact={columns === 2}

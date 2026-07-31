@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Literal
 
 from ..config import get_settings
-from ..services import agent_tools, assertions, sandbox
+from ..services import agent_tools, assertions, judge, sandbox
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -39,9 +39,20 @@ async def list_tools() -> list[ToolInfo]:
     ]
 
 
+class JudgeCriterion(BaseModel):
+    key: str
+    label: str
+    description: str
+
+
 @router.get("/assertion-types", response_model=list[AssertionType])
 async def list_assertion_types() -> list[AssertionType]:
     return [AssertionType(**entry) for entry in assertions.CATALOG]
+
+
+@router.get("/judge-criteria", response_model=list[JudgeCriterion])
+async def list_judge_criteria() -> list[JudgeCriterion]:
+    return [JudgeCriterion(**entry) for entry in judge.CRITERION_PRESETS]
 
 
 @router.get("/sandbox", response_model=SandboxStatus)

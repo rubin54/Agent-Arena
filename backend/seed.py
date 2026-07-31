@@ -35,6 +35,13 @@ EXAMPLES: list[dict] = [
             },
         ],
         "render_mode": "markdown",
+        # Nothing here can be checked mechanically -- this is what the judge is for.
+        "judge_config": {
+            "enabled": True,
+            "model": "openai/gpt-4o-mini",
+            "scale_max": 5,
+            "criteria": ["correctness", "clarity", "conciseness"],
+        },
         "params": {"temperature": 0.4, "max_tokens": 900},
     },
     {
@@ -70,6 +77,12 @@ EXAMPLES: list[dict] = [
             },
         ],
         "render_mode": "html",
+        "judge_config": {
+            "enabled": True,
+            "model": "openai/gpt-4o-mini",
+            "scale_max": 5,
+            "criteria": ["instruction_following", "design", "code_quality"],
+        },
         "params": {"temperature": 0.8, "max_tokens": 8000},
     },
     {

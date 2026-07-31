@@ -1,8 +1,9 @@
-import { Check, CheckCircle2, ChevronDown, Copy, Maximize2, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, Copy, Gavel, Maximize2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { RenderMode, RunItem } from '../api/types'
 import { formatCost, formatDuration, formatTokens } from '../lib/format'
 import { AgentTrace } from './AgentTrace'
+import { JudgeVerdict, RatingStars } from './Rating'
 import { ResultRenderer } from './ResultRenderer'
 import { Badge, Button, ErrorBox, Spinner, StatusBadge, cx } from './ui'
 
@@ -10,12 +11,14 @@ type View = 'rendered' | 'raw' | 'trace'
 
 export function RunItemCard({
   item,
+  runId,
   renderMode,
   codeLanguage,
   onExpand,
   compact = false,
 }: {
   item: RunItem
+  runId: string
   renderMode: RenderMode
   codeLanguage?: string | null
   onExpand?: () => void
@@ -44,6 +47,12 @@ export function RunItemCard({
           <p className="truncate font-mono text-[11px] text-ink-500">{item.model_id}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {item.judge_score !== null && (
+            <Badge tone="accent" title="Judge score">
+              <Gavel className="h-3 w-3" />
+              {item.judge_score.toFixed(1)}
+            </Badge>
+          )}
           {item.passed !== null && (
             <Badge tone={item.passed ? 'green' : 'red'}>
               {item.passed ? (
@@ -57,6 +66,8 @@ export function RunItemCard({
           <StatusBadge status={item.status} />
         </div>
       </header>
+
+      {item.judge_result && <JudgeVerdict result={item.judge_result} />}
 
       {assertionResults.length > 0 && (
         <ul className="divide-y divide-ink-800 border-b border-ink-700 bg-ink-900/40">
@@ -163,6 +174,17 @@ export function RunItemCard({
           </div>
         )}
       </div>
+
+      {item.status === 'completed' && item.output_text && (
+        <div className="border-t border-ink-700 px-3 py-2">
+          <RatingStars
+            runId={runId}
+            itemId={item.id}
+            rating={item.rating}
+            note={item.rating_note}
+          />
+        </div>
+      )}
 
       {item.status === 'completed' && item.output_text && (
         <footer className="flex items-center justify-between gap-2 border-t border-ink-700 px-3 py-2">

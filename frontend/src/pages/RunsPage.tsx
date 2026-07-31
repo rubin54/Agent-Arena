@@ -43,6 +43,8 @@ export function RunsPage() {
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 font-medium">Models</th>
                 <th className="px-4 py-2.5 font-medium">Passed</th>
+                <th className="px-4 py-2.5 font-medium">Ø judge</th>
+                <th className="px-4 py-2.5 font-medium">Ø rating</th>
                 <th className="px-4 py-2.5 font-medium">Cost</th>
                 <th className="px-4 py-2.5 font-medium">Duration</th>
                 <th className="px-4 py-2.5 font-medium">Started</th>
@@ -83,6 +85,20 @@ export function RunsPage() {
                       >
                         {run.passed_count}/{run.evaluated_count}
                       </span>
+                    ) : (
+                      <span className="text-ink-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-xs">
+                    {run.avg_judge_score !== null ? (
+                      <span className="text-accent-400">{run.avg_judge_score.toFixed(1)}</span>
+                    ) : (
+                      <span className="text-ink-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-xs">
+                    {run.avg_rating !== null ? (
+                      <span className="text-amber-400">{run.avg_rating.toFixed(1)} ★</span>
                     ) : (
                       <span className="text-ink-600">—</span>
                     )}
